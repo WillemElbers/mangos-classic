@@ -27,7 +27,7 @@
 #include <list>
 #include <sstream>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <direct.h>
 #define popen _popen
 #define pclose _pclose
@@ -50,13 +50,15 @@
 
 // config
 
-#define NUM_REMOTES 2
-#define NUM_DATABASES 3
+#define NUM_REMOTES 4
+#define NUM_DATABASES 4
 
 char remotes[NUM_REMOTES][MAX_REMOTE] =
 {
     "git@github.com:cmangos/mangos-classic.git",
-    "git://github.com/cmangos/mangos-classic.git"           // used for fetch if present
+    "git://github.com/cmangos/mangos-classic.git",          // used for fetch if present
+    "https://github.com/cmangos/mangos-classic.git",
+    "https://github.com/cmangos/mangos-classic/"
 };
 
 char remote_branch[MAX_REMOTE] = "master";
@@ -67,6 +69,7 @@ char new_index_file[MAX_PATH] = ".git/git_id_index";
 char databases[NUM_DATABASES][MAX_DB] =
 {
     "realmd",
+    "logs",
     "characters",
     "mangos",
 };
@@ -74,6 +77,7 @@ char databases[NUM_DATABASES][MAX_DB] =
 char db_version_table[NUM_DATABASES][MAX_DB] =
 {
     "realmd_db_version",
+    "logs_db_version",
     "character_db_version",
     "db_version",
 };
@@ -81,6 +85,7 @@ char db_version_table[NUM_DATABASES][MAX_DB] =
 char db_sql_file[NUM_DATABASES][MAX_PATH] =
 {
     "sql/base/realmd.sql",
+    "sql/base/logs.sql",
     "sql/base/characters.sql",
     "sql/base/mangos.sql",
 };
@@ -88,6 +93,7 @@ char db_sql_file[NUM_DATABASES][MAX_PATH] =
 char db_sql_rev_field[NUM_DATABASES][MAX_PATH] =
 {
     "REVISION_DB_REALMD",
+    "REVISION_DB_LOGS",
     "REVISION_DB_CHARACTERS",
     "REVISION_DB_MANGOS",
 };
@@ -96,6 +102,7 @@ char db_sql_rev_field[NUM_DATABASES][MAX_PATH] =
 char last_sql_update[NUM_DATABASES][MAX_PATH] =
 {
     "z2678_01_realmd",
+    "s2325_01_logs",
     "z2679_03_characters_guild_member",
     "z2681_01_mangos_mangos_string",
 };
@@ -104,13 +111,15 @@ int last_sql_rev[NUM_DATABASES] =
 {
     2678,
     2679,
+    2679,
     2681
 };
 
 int last_sql_nr[NUM_DATABASES] =
 {
     1,
-    3,
+    1,
+    2,
     1
 };
 
@@ -215,7 +224,12 @@ bool fetch_origin()
 
 bool check_fwd()
 {
-    snprintf(cmd, MAX_CMD, "git log -n 1 --pretty=\"format:%%H\" %s/%s", (origins[1][0] ? origins[1] : origins[0]), remote_branch);
+    int i;
+    for (i = 0; i < MAX_REMOTE; i++)
+        if (origins[i][0])
+            break;
+
+    snprintf(cmd, MAX_CMD, "git log -n 1 --pretty=\"format:%%H\" %s/%s", origins[i], remote_branch);
     if ((cmd_pipe = popen(cmd, "r")) == NULL)
         return false;
 

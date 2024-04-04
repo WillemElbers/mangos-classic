@@ -1,9 +1,19 @@
 ############################################
-# MaNGOS realmd configuration file         #
+# MaNGOS realmd configuration file
+#
+# 	To overwrite configuration fields with environment variables
+# 	use the following pattern to generate environment variable names:
+#
+# 		For WrongPass.MaxCount:
+# 			export Realmd_WrongPass_MaxCount=10
+#
+# 		For RealmServerPort:
+# 			export Realmd_RealmServerPort=3333
+#
 ############################################
 
 [RealmdConf]
-ConfVersion=2010062001
+ConfVersion=2021031501
 
 ###################################################################################################################
 # REALMD SETTINGS
@@ -29,10 +39,14 @@ ConfVersion=2010062001
 #         Port on which the server will listen
 #
 #    BindIP
-#         Bind Realm Server to IP/hostname
+#         Bind Realm Server to specific IP address
 #         This option is useful for running multiple worldd/realmd instances
 #         on different IP addresses using default ports.
 #         DO NOT CHANGE THIS UNLESS YOU _REALLY_ KNOW WHAT YOU'RE DOING
+#
+#    ListenerThreads
+#        Number of listener threads realmd should use.
+#        Default: 1
 #
 #    PidFile
 #        Realmd daemon PID file
@@ -92,6 +106,11 @@ ConfVersion=2010062001
 #        Default: 20
 #                 0  (Disabled)
 #
+#    StrictVersionCheck
+#        Description: Prevent modified clients from connnecting
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+#
 #    WrongPass.MaxCount
 #        Number of login attemps with wrong password before the account or IP is banned
 #        Default: 0  (Never ban)
@@ -107,11 +126,12 @@ ConfVersion=2010062001
 #
 ###################################################################################################################
 
-LoginDatabaseInfo = "127.0.0.1;3306;mangos;mangos;realmd"
+LoginDatabaseInfo = "127.0.0.1;3306;mangos;mangos;classicrealmd"
 LogsDir = ""
 MaxPingTime = 30
 RealmServerPort = 3724
 BindIP = "0.0.0.0"
+ListenerThreads = 1
 PidFile = ""
 LogLevel = 0
 LogTime = 0
@@ -123,6 +143,7 @@ UseProcessors = 0
 ProcessPriority = 1
 WaitAtStartupError = 0
 RealmsStateUpdateDelay = 20
+StrictVersionCheck = 0
 WrongPass.MaxCount = 0
 WrongPass.BanTime = 600
 WrongPass.BanType = 0

@@ -1,4 +1,3 @@
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -20,11 +19,9 @@ BuildContext::BuildContext() :
 	m_messageCount(0),
 	m_textPoolSize(0)
 {
-	resetTimers();
-}
+	memset(m_messages, 0, sizeof(char*) * MAX_MESSAGES);
 
-BuildContext::~BuildContext()
-{
+	resetTimers();
 }
 
 // Virtual functions for custom implementations.
@@ -70,7 +67,7 @@ void BuildContext::doStartTimer(const rcTimerLabel label)
 void BuildContext::doStopTimer(const rcTimerLabel label)
 {
 	const TimeVal endTime = getPerfTime();
-	const int deltaTime = (int)(endTime - m_startTime[label]);
+	const TimeVal deltaTime = endTime - m_startTime[label];
 	if (m_accTime[label] == -1)
 		m_accTime[label] = deltaTime;
 	else
@@ -79,7 +76,7 @@ void BuildContext::doStopTimer(const rcTimerLabel label)
 
 int BuildContext::doGetAccumulatedTime(const rcTimerLabel label) const
 {
-	return m_accTime[label];
+	return getPerfTimeUsec(m_accTime[label]);
 }
 
 void BuildContext::dumpLog(const char* format, ...)
@@ -186,7 +183,7 @@ public:
 		}
 	}
 };
-GLCheckerTexture g_tex;
+static GLCheckerTexture g_tex;
 
 
 void DebugDrawGL::depthMask(bool state)

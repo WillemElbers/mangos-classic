@@ -24,7 +24,7 @@
 //============================================
 class LinkedListHead;
 
-class MANGOS_DLL_SPEC LinkedListElement
+class LinkedListElement
 {
     private:
 
@@ -134,8 +134,7 @@ class LinkedListHead
 
                 return result;
             }
-            else
-                return iSize;
+            return iSize;
         }
 
         void incSize() { ++iSize; }
@@ -156,7 +155,7 @@ class LinkedListHead
                 typedef _Ty const& const_reference;
 
                 Iterator()
-                    : _Ptr(0)
+                    : _Ptr(nullptr)
                 {
                     // construct with null node pointer
                 }

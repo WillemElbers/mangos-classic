@@ -17,13 +17,14 @@
  */
 
 #ifndef DO_POSTGRESQL
+#ifndef DO_SQLITE
 
-#include "Util.h"
+#include "Util/Util.h"
 #include "Policies/Singleton.h"
 #include "Platform/Define.h"
-#include "Threading.h"
+#include "Multithreading/Threading.h"
 #include "DatabaseEnv.h"
-#include "Timer.h"
+#include "Util/Timer.h"
 
 size_t DatabaseMysql::db_count = 0;
 
@@ -85,13 +86,11 @@ bool MySQLConnection::Initialize(const char* infoString)
 
     Tokens tokens = StrSplit(infoString, ";");
 
-    Tokens::iterator iter;
-
     std::string host, port_or_socket, user, password, database;
     int port;
     char const* unix_socket;
 
-    iter = tokens.begin();
+    Tokens::iterator iter = tokens.begin();
 
     if (iter != tokens.end())
         host = *iter++;
@@ -105,18 +104,18 @@ bool MySQLConnection::Initialize(const char* infoString)
         database = *iter++;
 
     mysql_options(mysqlInit, MYSQL_SET_CHARSET_NAME, "utf8");
-#ifdef WIN32
+#ifdef _WIN32
     if (host == ".")                                        // named pipe use option (Windows)
     {
         unsigned int opt = MYSQL_PROTOCOL_PIPE;
         mysql_options(mysqlInit, MYSQL_OPT_PROTOCOL, (char const*)&opt);
         port = 0;
-        unix_socket = 0;
+        unix_socket = nullptr;
     }
     else                                                    // generic case
     {
         port = atoi(port_or_socket.c_str());
-        unix_socket = 0;
+        unix_socket = nullptr;
     }
 #else
     if (host == ".")                                        // socket use option (Unix/Linux)
@@ -130,7 +129,7 @@ bool MySQLConnection::Initialize(const char* infoString)
     else                                                    // generic case
     {
         port = atoi(port_or_socket.c_str());
-        unix_socket = 0;
+        unix_socket = nullptr;
     }
 #endif
 
@@ -177,7 +176,7 @@ bool MySQLConnection::Initialize(const char* infoString)
 bool MySQLConnection::_Query(const char* sql, MYSQL_RES** pResult, MYSQL_FIELD** pFields, uint64* pRowCount, uint32* pFieldCount)
 {
     if (!mMysql)
-        return 0;
+        return false;
 
     uint32 _s = WorldTimer::getMSTime();
 
@@ -187,10 +186,7 @@ bool MySQLConnection::_Query(const char* sql, MYSQL_RES** pResult, MYSQL_FIELD**
         sLog.outErrorDb("query ERROR: %s", mysql_error(mMysql));
         return false;
     }
-    else
-    {
-        DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(_s, WorldTimer::getMSTime()), sql);
-    }
+    DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(_s, WorldTimer::getMSTime()), sql);
 
     *pResult = mysql_store_result(mMysql);
     *pRowCount = mysql_affected_rows(mMysql);
@@ -209,7 +205,7 @@ bool MySQLConnection::_Query(const char* sql, MYSQL_RES** pResult, MYSQL_FIELD**
     return true;
 }
 
-QueryResult* MySQLConnection::Query(const char* sql)
+std::unique_ptr<QueryResult> MySQLConnection::Query(const char* sql)
 {
     MYSQL_RES* result = nullptr;
     MYSQL_FIELD* fields = nullptr;
@@ -219,7 +215,7 @@ QueryResult* MySQLConnection::Query(const char* sql)
     if (!_Query(sql, &result, &fields, &rowCount, &fieldCount))
         return nullptr;
 
-    QueryResultMysql* queryResult = new QueryResultMysql(result, fields, rowCount, fieldCount);
+    auto queryResult = std::make_unique<QueryResultMysql>(result, fields, rowCount, fieldCount);
 
     queryResult->NextRow();
     return queryResult;
@@ -259,10 +255,7 @@ bool MySQLConnection::Execute(const char* sql)
             sLog.outErrorDb("SQL ERROR: %s", mysql_error(mMysql));
             return false;
         }
-        else
-        {
-            DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(_s, WorldTimer::getMSTime()), sql);
-        }
+        DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "[%u ms] SQL: %s", WorldTimer::getMSTimeDiff(_s, WorldTimer::getMSTime()), sql);
         // end guarded block
     }
 
@@ -277,10 +270,7 @@ bool MySQLConnection::_TransactionCmd(const char* sql)
         sLog.outError("SQL ERROR: %s", mysql_error(mMysql));
         return false;
     }
-    else
-    {
-        DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "SQL: %s", sql);
-    }
+    DEBUG_FILTER_LOG(LOG_FILTER_SQL_TEXT, "SQL: %s", sql);
     return true;
 }
 
@@ -312,7 +302,6 @@ SqlPreparedStatement* MySQLConnection::CreateStatement(const std::string& fmt)
 {
     return new MySqlPreparedStatement(fmt, *this, mMysql);
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 MySqlPreparedStatement::MySqlPreparedStatement(const std::string& fmt, SqlConnection& conn, MYSQL* mysql) : SqlPreparedStatement(fmt, conn),
@@ -428,14 +417,14 @@ void MySqlPreparedStatement::addParam(unsigned int nIndex, const SqlStmtFieldDat
 
     MYSQL_BIND& pData = m_pInputArgs[nIndex];
 
-    my_bool bUnsigned = 0;
+    bool bUnsigned = 0;
     enum_field_types dataType = ToMySQLType(data, bUnsigned);
 
     // setup MYSQL_BIND structure
     pData.buffer_type = dataType;
     pData.is_unsigned = bUnsigned;
     pData.buffer = data.buff();
-    pData.length = 0;
+    pData.length = nullptr;
     pData.buffer_length = data.type() == FIELD_STRING ? data.size() : 0;
 }
 
@@ -473,7 +462,7 @@ bool MySqlPreparedStatement::execute()
     return true;
 }
 
-enum_field_types MySqlPreparedStatement::ToMySQLType(const SqlStmtFieldData& data, my_bool& bUnsigned)
+enum_field_types MySqlPreparedStatement::ToMySQLType(const SqlStmtFieldData& data, bool& bUnsigned)
 {
     bUnsigned = 0;
     enum_field_types dataType = MYSQL_TYPE_NULL;
@@ -498,4 +487,5 @@ enum_field_types MySqlPreparedStatement::ToMySQLType(const SqlStmtFieldData& dat
 
     return dataType;
 }
+#endif
 #endif

@@ -16,7 +16,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-set(EXECUTABLE_NAME mangosd)
+set(EXECUTABLE_NAME ${CMANGOS_BINARY_SERVER_NAME})
 
 set(EXECUTABLE_SRCS
     CliRunnable.cpp
@@ -39,59 +39,71 @@ set(EXECUTABLE_SRCS
 if(WIN32)
   # add resource file to windows build
   set(EXECUTABLE_SRCS ${EXECUTABLE_SRCS} mangosd.rc)
-endif()
-
-include_directories(
-  ${CMAKE_SOURCE_DIR}/src/shared
-  ${CMAKE_SOURCE_DIR}/dep/include/gsoap
-  ${CMAKE_SOURCE_DIR}/src/framework
-  ${CMAKE_SOURCE_DIR}/src/game
-  ${CMAKE_BINARY_DIR}
-  ${CMAKE_BINARY_DIR}/src/shared
-  ${OPENSSL_INCLUDE_DIR}
-)
-
-if(POSTGRESQL)
-  include_directories(${PGSQL_INCLUDE_DIR})
-else()
-  include_directories(${MYSQL_INCLUDE_DIR})
+  if(MSVC)
+    set(EXECUTABLE_SRCS
+      ${EXECUTABLE_SRCS}
+      ${CMAKE_SOURCE_DIR}/src/shared/Platform/WheatyExceptionReport.cpp
+      ${CMAKE_SOURCE_DIR}/src/shared/Platform/WheatyExceptionReport.h
+     )
+  endif()
 endif()
 
 add_executable(${EXECUTABLE_NAME}
   ${EXECUTABLE_SRCS}
 )
 
-add_dependencies(${EXECUTABLE_NAME} revision.h)
-
 target_link_libraries(${EXECUTABLE_NAME}
-  game
   shared
-  framework
-  g3dlite
+  game
   gsoap
-  ${Boost_LIBRARIES}
 )
 
 if(WIN32)
-  target_link_libraries(${EXECUTABLE_NAME}
-    zlib
-    optimized ${MYSQL_LIBRARY}
-    optimized ${OPENSSL_LIBRARIES}
-    debug ${MYSQL_DEBUG_LIBRARY}
-    debug ${OPENSSL_DEBUG_LIBRARIES}
-  )
-  if(PLATFORM MATCHES X86)
-    target_link_libraries(${EXECUTABLE_NAME})
+  if(MSVC)
+    target_link_libraries(${EXECUTABLE_NAME}
+      dbghelp
+    )
   endif()
-endif()
+  if(MINGW)
+    target_link_libraries(${EXECUTABLE_NAME}
+      wsock32
+      ws2_32
+    )
+  endif()
 
-if(UNIX)
-  target_link_libraries(${EXECUTABLE_NAME}
-    ${MYSQL_LIBRARY}
-    ${OPENSSL_LIBRARIES}
-    ${OPENSSL_EXTRA_LIBRARIES}
-    ${ZLIB_LIBRARIES}
-  )
+  # Define OutDir to source/bin/(platform)_(configuaration) folder.
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES PROJECT_LABEL "WorldServer")
+
+  # Add conf file to dev folder
+  add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different \"${CMAKE_CURRENT_SOURCE_DIR}/mangosd.conf.dist.in\" \"$<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/mangosd.conf.dist\")
+
+  add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different \"${CMAKE_SOURCE_DIR}/src/game/Anticheat/module/anticheat.conf.dist.in\" \"$<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/anticheat.conf.dist\")
+
+  add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/game/Anticheat/module/warden_modules/ $<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/warden_modules
+    DEPENDS ${EXECUTABLE_NAME})
+
+  if(BUILD_DEPRECATED_PLAYERBOT)
+    add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+	  COMMAND ${CMAKE_COMMAND} -E copy_if_different \"${CMAKE_SOURCE_DIR}/src/game/PlayerBot/playerbot.conf.dist.in\" \"$<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/playerbot.conf.dist\")
+  endif()
+
+  if(BUILD_PLAYERBOTS)
+    add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+	  COMMAND ${CMAKE_COMMAND} -E copy_if_different \"${CMAKE_SOURCE_DIR}/src/modules/PlayerBots/playerbot/aiplayerbot.conf.dist.in\" \"$<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/aiplayerbot.conf.dist\")
+  endif()
+
+  if(BUILD_AHBOT)
+    add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+	  COMMAND ${CMAKE_COMMAND} -E copy_if_different \"${CMAKE_SOURCE_DIR}/src/game/AuctionHouseBot/ahbot.conf.dist.in\" \"$<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/ahbot.conf.dist\")
+  endif()
 endif()
 
 set(EXECUTABLE_LINK_FLAGS "")
@@ -108,11 +120,33 @@ set_target_properties(${EXECUTABLE_NAME} PROPERTIES LINK_FLAGS
   "${EXECUTABLE_LINK_FLAGS}"
 )
 
+if (NOT WIN32)
+  install(FILES run-mangosd DESTINATION ${BIN_DIR})
+endif()
 install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${BIN_DIR})
-install(FILES run-mangosd DESTINATION ${BIN_DIR})
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/mangosd.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/mangosd.conf.dist)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/mangosd.conf.dist DESTINATION ${CONF_DIR})
 
-if(WIN32 AND MSVC)
+# Define BUILD_DEPRECATED_PLAYERBOT if need
+if (BUILD_DEPRECATED_PLAYERBOT)
+  add_definitions(-DBUILD_DEPRECATED_PLAYERBOT)
+  configure_file(${CMAKE_SOURCE_DIR}/src/game/PlayerBot/playerbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/playerbot.conf.dist)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/playerbot.conf.dist DESTINATION ${CONF_DIR})
+endif()
+
+if (BUILD_AHBOT)
+  configure_file(${CMAKE_SOURCE_DIR}/src/game/AuctionHouseBot/ahbot.conf.dist.in ${CMAKE_CURRENT_BINARY_DIR}/ahbot.conf.dist)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ahbot.conf.dist DESTINATION ${CONF_DIR})
+endif()
+
+# Define ENABLE_PLAYERBOTS if need
+if (BUILD_PLAYERBOTS)
+  add_definitions(-DENABLE_PLAYERBOTS)
+endif()
+
+if(MSVC)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/\${BUILD_TYPE}/${EXECUTABLE_NAME}.pdb DESTINATION ${BIN_DIR} CONFIGURATIONS Debug)
 endif()
+
+install(FILES ${CMAKE_SOURCE_DIR}/src/game/Anticheat/module/anticheat.conf.dist.in DESTINATION ${CONF_DIR} RENAME anticheat.conf.dist)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/game/Anticheat/module/warden_modules DESTINATION ${BIN_DIR})

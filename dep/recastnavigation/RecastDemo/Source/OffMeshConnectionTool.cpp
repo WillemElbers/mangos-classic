@@ -16,13 +16,17 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <float.h>
 #include "SDL.h"
 #include "SDL_opengl.h"
+#ifdef __APPLE__
+#	include <OpenGL/glu.h>
+#else
+#	include <GL/glu.h>
+#endif
 #include "imgui.h"
 #include "OffMeshConnectionTool.h"
 #include "InputGeom.h"
@@ -137,7 +141,7 @@ void OffMeshConnectionTool::handleUpdate(const float /*dt*/)
 
 void OffMeshConnectionTool::handleRender()
 {
-	DebugDrawGL dd;
+	duDebugDraw& dd = m_sample->getDebugDraw();
 	const float s = m_sample->getAgentRadius();
 	
 	if (m_hitPosSet)

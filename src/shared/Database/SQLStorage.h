@@ -74,7 +74,7 @@ class SQLStorageBase
         uint32 GetSrcFieldCount() const { return m_srcFieldCount; }
         uint32 GetRecordSize() const { return m_recordSize; }
 
-        virtual void prepareToLoad(uint32 maxRecordId, uint32 recordCount, uint32 recordSize);
+        virtual void prepareToLoad(uint32 maxEntry, uint32 recordCount, uint32 recordSize);
         virtual void JustCreatedRecord(uint32 recordId, char* record) = 0;
         virtual void Free();
 
@@ -248,14 +248,17 @@ template <class DerivedLoader, class StorageClass>
 class SQLStorageLoaderBase
 {
     public:
-        void Load(StorageClass& storage, bool error_at_empty = true);
+        void Load(StorageClass& store, bool error_at_empty = true);
 
         template<class S, class D>
         void convert(uint32 field_pos, S src, D& dst);
         template<class S>
+        void convert_to_bool(uint32 field_pos, S src, bool& dst);
+        template<class S>
         void convert_to_str(uint32 field_pos, S src, char*& dst);
         template<class D>
         void convert_from_str(uint32 field_pos, char const* src, D& dst);
+        void convert_str_to_bool(uint32 field_pos, char const* src, bool& dst);
         void convert_str_to_str(uint32 field_pos, char const* src, char*& dst);
         template<class S, class D>
         void default_fill(uint32 field_pos, S src, D& dst);
@@ -268,8 +271,8 @@ class SQLStorageLoaderBase
 
     private:
         template<class V>
-        void storeValue(V value, StorageClass& store, char* record, uint32 field_pos, uint32& offset);
-        void storeValue(char const* value, StorageClass& store, char* record, uint32 field_pos, uint32& offset);
+        void storeValue(V value, StorageClass& store, char* p, uint32 x, uint32& offset);
+        void storeValue(char const* value, StorageClass& store, char* p, uint32 x, uint32& offset);
 
         // trap, no body
         void storeValue(char* value, StorageClass& store, char* record, uint32 field_pos, uint32& offset);

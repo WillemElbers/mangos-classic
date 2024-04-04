@@ -17,13 +17,13 @@
  */
 
 #include "BIH.h"
-
+#include <stdexcept>
 #include <cmath>
 
 void BIH::buildHierarchy(std::vector<uint32>& tempTree, buildData& dat, BuildStats& stats)
 {
     // create space for the first node
-    tempTree.push_back(3 << 30); // dummy leaf
+    tempTree.push_back(static_cast<uint32>(3 << 30)); // dummy leaf
     tempTree.insert(tempTree.end(), 2, 0);
     // tempTree.add(0);
 
@@ -45,7 +45,9 @@ void BIH::subdivide(int left, int right, std::vector<uint32>& tempTree, buildDat
     }
     // calculate extents
     int axis = -1, rightOrig;
-    float clipL = G3D::fnan(), clipR = G3D::fnan(), prevClip = G3D::fnan();
+    float clipL;
+    float clipR;
+    float prevClip = G3D::fnan();
     float split = G3D::fnan();
     bool wasLeft = true;
     while (true)
@@ -150,6 +152,7 @@ void BIH::subdivide(int left, int right, std::vector<uint32>& tempTree, buildDat
         else if (left > right)
         {
             // all right
+            right = rightOrig;
             if (prevAxis == axis && G3D::fuzzyEq(prevSplit, split))
             {
                 // we are stuck here - create a leaf
@@ -157,7 +160,6 @@ void BIH::subdivide(int left, int right, std::vector<uint32>& tempTree, buildDat
                 createNode(tempTree, nodeIndex, left, right);
                 return;
             }
-            right = rightOrig;
             if (clipR >= split)
             {
                 // keep looping on right half

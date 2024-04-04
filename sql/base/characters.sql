@@ -21,7 +21,7 @@
 
 DROP TABLE IF EXISTS `character_db_version`;
 CREATE TABLE `character_db_version` (
-  `required_z2682_01_characters_pvpstats` bit(1) DEFAULT NULL
+  `required_z2819_01_characters_item_instance_text_id_fix` bit(1) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Last applied sql update to DB';
 
 --
@@ -33,6 +33,63 @@ LOCK TABLES `character_db_version` WRITE;
 INSERT INTO `character_db_version` VALUES
 (NULL);
 /*!40000 ALTER TABLE `character_db_version` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `ahbot_items`
+--
+
+DROP TABLE IF EXISTS `ahbot_items`;
+CREATE TABLE `ahbot_items` (
+      `item` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Item Identifier',
+      `value` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Item value, a value of 0 bans item from being sold/bought by AHBot',
+      `add_chance` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Chance item is added to AH upon bot visit, 0 for normal loot sources',
+      `min_amount` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Min amount added, not used when add_chance is 0',
+      `max_amount` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Max amount added, not used when add_chance is 0',
+      PRIMARY KEY (`item`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='AuctionHouseBot overridden item settings';
+
+--
+-- Table structure for table `account_data`
+--
+
+DROP TABLE IF EXISTS `account_data`;
+CREATE TABLE `account_data` (
+  `account` int(11) unsigned NOT NULL DEFAULT '0',
+  `type` int(11) unsigned NOT NULL DEFAULT '0',
+  `time` bigint(11) unsigned NOT NULL DEFAULT '0',
+  `data` longblob NOT NULL,
+  PRIMARY KEY (`account`,`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
+-- Dumping data for table `account_data`
+--
+
+LOCK TABLES `account_data` WRITE;
+/*!40000 ALTER TABLE `account_data` DISABLE KEYS */;
+/*!40000 ALTER TABLE `account_data` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `account_instances_entered`
+--
+
+DROP TABLE IF EXISTS `account_instances_entered`;
+CREATE TABLE `account_instances_entered` (
+   `AccountId` INT(11) UNSIGNED NOT NULL COMMENT 'Player account',
+   `ExpireTime` BIGINT(40) NOT NULL COMMENT 'Time when instance was entered',
+   `InstanceId` INT(11) UNSIGNED NOT NULL COMMENT 'ID of instance entered',
+   PRIMARY KEY(`AccountId`,`InstanceId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='Instance reset limit system';
+
+--
+-- Dumping data for table `account_instances_entered`
+--
+
+LOCK TABLES `account_instances_entered` WRITE;
+/*!40000 ALTER TABLE `account_instances_entered` DISABLE KEYS */;
+/*!40000 ALTER TABLE `account_instances_entered` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -86,6 +143,19 @@ LOCK TABLES `bugreport` WRITE;
 /*!40000 ALTER TABLE `bugreport` DISABLE KEYS */;
 /*!40000 ALTER TABLE `bugreport` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `character_account_data`
+--
+
+DROP TABLE IF EXISTS `character_account_data`;
+CREATE TABLE `character_account_data` (
+  `guid` int(11) unsigned NOT NULL DEFAULT '0',
+  `type` int(11) unsigned NOT NULL DEFAULT '0',
+  `time` bigint(11) unsigned NOT NULL DEFAULT '0',
+  `data` longblob NOT NULL,
+  PRIMARY KEY (`guid`,`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
 -- Table structure for table `character_action`
@@ -302,6 +372,7 @@ CREATE TABLE `character_pet` (
   `Reactstate` tinyint(1) unsigned NOT NULL DEFAULT '0',
   `loyaltypoints` int(11) NOT NULL DEFAULT '0',
   `loyalty` int(11) unsigned NOT NULL DEFAULT '0',
+  `xpForNextLoyalty` int(11) unsigned NOT NULL default '0',
   `trainpoint` int(11) NOT NULL DEFAULT '0',
   `name` varchar(100) DEFAULT 'Pet',
   `renamed` tinyint(1) unsigned NOT NULL DEFAULT '0',
@@ -359,6 +430,13 @@ LOCK TABLES `character_queststatus` WRITE;
 /*!40000 ALTER TABLE `character_queststatus` ENABLE KEYS */;
 UNLOCK TABLES;
 
+DROP TABLE IF EXISTS `character_queststatus_weekly`;
+CREATE TABLE `character_queststatus_weekly` (
+  `guid` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Global Unique Identifier',
+  `quest` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Quest Identifier',
+  PRIMARY KEY (`guid`,`quest`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='Player System';
+
 --
 -- Table structure for table `character_reputation`
 --
@@ -402,6 +480,14 @@ LOCK TABLES `character_skills` WRITE;
 /*!40000 ALTER TABLE `character_skills` DISABLE KEYS */;
 /*!40000 ALTER TABLE `character_skills` ENABLE KEYS */;
 UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `character_forgotten_skills`;
+CREATE TABLE `character_forgotten_skills` (
+  `guid` int(11) unsigned NOT NULL COMMENT 'Global Unique Identifier',
+  `skill` mediumint(9) unsigned NOT NULL,
+  `value` mediumint(9) unsigned NOT NULL,
+  PRIMARY KEY (`guid`,`skill`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Player System';
 
 --
 -- Table structure for table `character_social`
@@ -456,11 +542,13 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `character_spell_cooldown`;
 CREATE TABLE `character_spell_cooldown` (
   `guid` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Global Unique Identifier, Low part',
-  `spell` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Spell Identifier',
-  `item` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Item Identifier',
-  `time` bigint(20) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`guid`,`spell`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  `SpellId` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Spell Identifier',
+  `SpellExpireTime` bigint(20) unsigned NOT NULL DEFAULT '0' COMMENT 'Spell cooldown expire time',
+  `Category` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Spell category',
+  `CategoryExpireTime` bigint(20) unsigned NOT NULL DEFAULT '0' COMMENT 'Spell category cooldown expire time',
+  `ItemId` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Item Identifier',
+  PRIMARY KEY (`guid`,`SpellId`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 --
 -- Dumping data for table `character_spell_cooldown`
@@ -515,29 +603,6 @@ CREATE TABLE `character_stats` (
 LOCK TABLES `character_stats` WRITE;
 /*!40000 ALTER TABLE `character_stats` DISABLE KEYS */;
 /*!40000 ALTER TABLE `character_stats` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `character_ticket`
---
-
-DROP TABLE IF EXISTS `character_ticket`;
-CREATE TABLE `character_ticket` (
-  `ticket_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `guid` int(11) unsigned NOT NULL DEFAULT '0',
-  `ticket_text` text,
-  `response_text` text,
-  `ticket_lastchange` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`ticket_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Player System';
-
---
--- Dumping data for table `character_ticket`
---
-
-LOCK TABLES `character_ticket` WRITE;
-/*!40000 ALTER TABLE `character_ticket` DISABLE KEYS */;
-/*!40000 ALTER TABLE `character_ticket` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -628,6 +693,8 @@ CREATE TABLE `characters` (
   `equipmentCache` longtext,
   `ammoId` int(10) unsigned NOT NULL DEFAULT '0',
   `actionBars` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `grantableLevels` INT UNSIGNED DEFAULT '0',
+  `fishingSteps` TINYINT UNSIGNED NOT NULL DEFAULT '0',
   `deleteInfos_Account` int(11) unsigned DEFAULT NULL,
   `deleteInfos_Name` varchar(12) DEFAULT NULL,
   `deleteDate` bigint(20) unsigned DEFAULT NULL,
@@ -717,6 +784,78 @@ CREATE TABLE `game_event_status` (
 LOCK TABLES `game_event_status` WRITE;
 /*!40000 ALTER TABLE `game_event_status` DISABLE KEYS */;
 /*!40000 ALTER TABLE `game_event_status` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gm_tickets`
+--
+
+DROP TABLE IF EXISTS `gm_tickets`;
+CREATE TABLE `gm_tickets` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'GM Ticket\'s unique identifier',
+  `category` tinyint(2) unsigned NOT NULL DEFAULT '0' COMMENT 'GM Ticket Category DBC entry\'s identifier',
+  `state` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT 'Ticket\'s current state',
+  `status` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT 'Ticket\'s current status',
+  `level` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT 'Ticket\'s security level',
+  `author_guid` int(11) unsigned NOT NULL COMMENT 'Player\'s character Global Unique Identifier',
+  `author_name` varchar(12) NOT NULL COMMENT 'Player\'s character name',
+  `locale` varchar(4) NOT NULL DEFAULT 'enUS' COMMENT 'Player\'s client locale name',
+  `mapid` int(4) unsigned NOT NULL DEFAULT '0' COMMENT 'Character\'s map identifier on submission',
+  `x` float NOT NULL DEFAULT '0' COMMENT 'Character\'s x coordinate on submission',
+  `y` float NOT NULL DEFAULT '0' COMMENT 'Character\'s y coordinate on submission',
+  `z` float NOT NULL DEFAULT '0' COMMENT 'Character\'s z coordinate on submission',
+  `o` float NOT NULL DEFAULT '0' COMMENT 'Character\'s orientation angle on submission',
+  `text` text NOT NULL COMMENT 'Ticket\'s message',
+  `created` bigint(40) unsigned NOT NULL COMMENT 'Timestamp: ticket created by a player',
+  `updated` bigint(40) unsigned NOT NULL DEFAULT 0 COMMENT 'Timestamp: ticket text\'s last update',
+  `seen` bigint(40) unsigned NOT NULL DEFAULT 0 COMMENT 'Timestamp: ticket\'s last time opened by a GM',
+  `answered` bigint(40) unsigned NOT NULL DEFAULT 0 COMMENT 'Timestamp: ticket\'s last time answered by a GM',
+  `closed` bigint(40) unsigned NOT NULL DEFAULT 0 COMMENT 'Timestamp: ticket closed by a GM',
+  `assignee_guid` int(11) unsigned NOT NULL DEFAULT '0' COMMENT 'Assignee\'s character\'s Global Unique Identifier',
+  `assignee_name` varchar(12) NOT NULL DEFAULT '' COMMENT 'Assignee\'s character\'s name',
+  `conclusion` varchar(255) NOT NULL DEFAULT '' COMMENT 'Assignee\'s final conclusion on this ticket',
+  `notes` varchar(10000) NOT NULL DEFAULT '' COMMENT 'Additional notes for GMs',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='GM Tickets System';
+
+--
+-- Dumping data for table `gm_tickets`
+--
+
+LOCK TABLES `gm_tickets` WRITE;
+/*!40000 ALTER TABLE `gm_tickets` DISABLE KEYS */;
+/*!40000 ALTER TABLE `gm_tickets` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `gm_surveys`
+--
+
+DROP TABLE IF EXISTS `gm_surveys`;
+CREATE TABLE `gm_surveys` (
+  `ticketid` int(11) unsigned NOT NULL COMMENT 'GM Ticket\'s unique identifier',
+  `surveyid` int(2) unsigned NOT NULL COMMENT 'Survey DBC entry\'s identifier',
+  `answer1` tinyint(2) unsigned,
+  `answer2` tinyint(2) unsigned,
+  `answer3` tinyint(2) unsigned,
+  `answer4` tinyint(2) unsigned,
+  `answer5` tinyint(2) unsigned,
+  `answer6` tinyint(2) unsigned,
+  `answer7` tinyint(2) unsigned,
+  `answer8` tinyint(2) unsigned,
+  `answer9` tinyint(2) unsigned,
+  `answer10` tinyint(2) unsigned,
+  `comment` text COMMENT 'Player\'s feedback',
+  PRIMARY KEY (`ticketid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='GM Tickets System';
+
+--
+-- Dumping data for table `gm_surveys`
+--
+
+LOCK TABLES `gm_surveys` WRITE;
+/*!40000 ALTER TABLE `gm_surveys` DISABLE KEYS */;
+/*!40000 ALTER TABLE `gm_surveys` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -934,6 +1073,7 @@ CREATE TABLE `instance` (
   `id` int(11) unsigned NOT NULL DEFAULT '0',
   `map` int(11) unsigned NOT NULL DEFAULT '0',
   `resettime` bigint(40) unsigned NOT NULL DEFAULT '0',
+  `encountersMask` int(10) unsigned NOT NULL DEFAULT '0',
   `data` longtext,
   PRIMARY KEY (`id`),
   KEY `map` (`map`),
@@ -977,7 +1117,17 @@ DROP TABLE IF EXISTS `item_instance`;
 CREATE TABLE `item_instance` (
   `guid` int(11) unsigned NOT NULL DEFAULT '0',
   `owner_guid` int(11) unsigned NOT NULL DEFAULT '0',
-  `data` longtext,
+  `itemEntry` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  `creatorGuid` int(10) unsigned NOT NULL default '0',
+  `giftCreatorGuid` int(10) unsigned NOT NULL default '0',
+  `count` int(10) unsigned NOT NULL default '1',
+  `duration` int(10) unsigned NOT NULL default '0',
+  `charges` text NOT NULL,
+  `flags` int(8) unsigned NOT NULL default '0',
+  `enchantments` text NOT NULL,
+  `randomPropertyId` smallint(5) NOT NULL default '0',
+  `durability` int(5) unsigned NOT NULL default '0',
+  `itemTextId` int(8) unsigned NOT NULL default '0',
   PRIMARY KEY (`guid`),
   KEY `idx_owner_guid` (`owner_guid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Item System';
@@ -1213,6 +1363,22 @@ LOCK TABLES `petition_sign` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `playerbot_saved_data`
+--
+
+DROP TABLE IF EXISTS `playerbot_saved_data`;
+CREATE TABLE `playerbot_saved_data` (
+  `guid` int(11) unsigned NOT NULL DEFAULT '0',
+  `combat_order` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `primary_target` int(11) unsigned NOT NULL DEFAULT '0',
+  `secondary_target` int(11) unsigned NOT NULL DEFAULT '0',
+  `pname` varchar(12) NOT NULL DEFAULT '',
+  `sname` varchar(12) NOT NULL DEFAULT '',
+  `combat_delay` INT(11) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`guid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
 -- Table structure for table `pvpstats_battlegrounds`
 --
 
@@ -1272,6 +1438,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `saved_variables`;
 CREATE TABLE `saved_variables` (
+  `NextWeeklyQuestResetTime` bigint(40) unsigned NOT NULL DEFAULT '0',
   `NextMaintenanceDate` int(11) unsigned NOT NULL DEFAULT '0',
   `cleaning_flags` int(11) unsigned NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC COMMENT='Variable Saves';
@@ -1304,6 +1471,14 @@ LOCK TABLES `world` WRITE;
 /*!40000 ALTER TABLE `world` DISABLE KEYS */;
 /*!40000 ALTER TABLE `world` ENABLE KEYS */;
 UNLOCK TABLES;
+
+DROP TABLE IF EXISTS world_state;
+CREATE TABLE world_state(
+   Id INT(11) UNSIGNED NOT NULL COMMENT 'Internal save ID',
+   Data longtext,
+   PRIMARY KEY(`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT COMMENT='WorldState save system';
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

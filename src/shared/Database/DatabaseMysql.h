@@ -17,6 +17,7 @@
  */
 
 #ifndef DO_POSTGRESQL
+#ifndef DO_SQLITE
 
 #ifndef _DATABASEMYSQL_H
 #define _DATABASEMYSQL_H
@@ -25,14 +26,10 @@
 #include "Database.h"
 #include "Policies/Singleton.h"
 
-#ifdef WIN32
-#include <mysql/mysql.h>
-#else
 #include <mysql.h>
-#endif
 
 // MySQL prepared statement class
-class MANGOS_DLL_SPEC MySqlPreparedStatement : public SqlPreparedStatement
+class MySqlPreparedStatement : public SqlPreparedStatement
 {
     public:
         MySqlPreparedStatement(const std::string& fmt, SqlConnection& conn, MYSQL* mysql);
@@ -51,7 +48,7 @@ class MANGOS_DLL_SPEC MySqlPreparedStatement : public SqlPreparedStatement
         // bind parameters
         void addParam(unsigned int nIndex, const SqlStmtFieldData& data);
 
-        static enum_field_types ToMySQLType(const SqlStmtFieldData& data, my_bool& bUnsigned);
+        static enum_field_types ToMySQLType(const SqlStmtFieldData& data, bool& bUnsigned);
 
     private:
         void RemoveBinds();
@@ -63,7 +60,7 @@ class MANGOS_DLL_SPEC MySqlPreparedStatement : public SqlPreparedStatement
         MYSQL_RES* m_pResultMetadata;
 };
 
-class MANGOS_DLL_SPEC MySQLConnection : public SqlConnection
+class MySQLConnection : public SqlConnection
 {
     public:
         MySQLConnection(Database& db) : SqlConnection(db), mMysql(nullptr) {}
@@ -73,11 +70,11 @@ class MANGOS_DLL_SPEC MySQLConnection : public SqlConnection
         /*! infoString should be formated like hostname;username;password;database. */
         bool Initialize(const char* infoString) override;
 
-        QueryResult* Query(const char* sql) override;
+        std::unique_ptr<QueryResult> Query(const char* sql) override;
         QueryNamedResult* QueryNamed(const char* sql) override;
         bool Execute(const char* sql) override;
 
-        unsigned long escape_string(char* to, const char* from, unsigned long length);
+        unsigned long escape_string(char* to, const char* from, unsigned long length) override;
 
         bool BeginTransaction() override;
         bool CommitTransaction() override;
@@ -93,7 +90,7 @@ class MANGOS_DLL_SPEC MySQLConnection : public SqlConnection
         MYSQL* mMysql;
 };
 
-class MANGOS_DLL_SPEC DatabaseMysql : public Database
+class DatabaseMysql : public Database
 {
         friend class MaNGOS::OperatorNew<DatabaseMysql>;
 
@@ -113,5 +110,6 @@ class MANGOS_DLL_SPEC DatabaseMysql : public Database
         static size_t db_count;
 };
 
+#endif
 #endif
 #endif

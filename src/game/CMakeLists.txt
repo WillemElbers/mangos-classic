@@ -19,464 +19,153 @@
 set(LIBRARY_NAME game)
 
 add_definitions(-DDT_POLYREF64)
+add_definitions(-D__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES=0)
 
-# include external dependencies libs headers (warnings disabled)
-include_directories(SYSTEM
-  ${CMAKE_SOURCE_DIR}/dep/include/g3dlite
-  ${CMAKE_SOURCE_DIR}/dep/recastnavigation/Detour
-  ${CMAKE_SOURCE_DIR}/dep/recastnavigation
-  ${CMAKE_SOURCE_DIR}/dep/include
-  ${MYSQL_INCLUDE_DIR}
-)
+# Find all the input files
+FILE(GLOB_RECURSE LIBRARY_SRCS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "*.h" "*.cpp")
 
-# include additionals headers
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/vmap
-  ${CMAKE_CURRENT_SOURCE_DIR}/AuctionHouseBot
-  ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround
-  ${CMAKE_CURRENT_SOURCE_DIR}/OutdoorPvP
-  ${CMAKE_SOURCE_DIR}/src/shared
-  ${CMAKE_SOURCE_DIR}/src/framework
-  ${CMAKE_BINARY_DIR}
-  ${CMAKE_BINARY_DIR}/src/shared
-)
-
-set(SRC_GRP_AHBOT
-    AuctionHouseBot/AuctionHouseBot.cpp
-    AuctionHouseBot/AuctionHouseBot.h
-)
-
-set(SRC_GRP_BATTLEGROUND
-    BattleGround/BattleGround.cpp
-    BattleGround/BattleGround.h
-    BattleGround/BattleGroundAB.cpp
-    BattleGround/BattleGroundAB.h
-    BattleGround/BattleGroundAV.cpp
-    BattleGround/BattleGroundAV.h
-    BattleGround/BattleGroundHandler.cpp
-    BattleGround/BattleGroundMgr.cpp
-    BattleGround/BattleGroundMgr.h
-    BattleGround/BattleGroundWS.cpp
-    BattleGround/BattleGroundWS.h
-)
-
-set(SRC_GRP_CHAT_COMMANDS
-    debugcmds.cpp
-    Level0.cpp
-    Level1.cpp
-    Level2.cpp
-    Level3.cpp
-)
-
-set(SRC_GRP_MOTION_GEN
-    ConfusedMovementGenerator.cpp
-    ConfusedMovementGenerator.h
-    FleeingMovementGenerator.cpp
-    FleeingMovementGenerator.h
-    HomeMovementGenerator.cpp
-    HomeMovementGenerator.h
-    IdleMovementGenerator.cpp
-    IdleMovementGenerator.h
-    MotionMaster.cpp
-    MotionMaster.h
-    MovementGenerator.cpp
-    MovementGenerator.h
-    MovementGeneratorImpl.h   # TODO: this is not in the VC files - does it belong in here?
-    PathFinder.cpp
-    PathFinder.h
-    PointMovementGenerator.cpp
-    PointMovementGenerator.h
-    RandomMovementGenerator.cpp
-    RandomMovementGenerator.h
-    TargetedMovementGenerator.cpp
-    TargetedMovementGenerator.h
-    WaypointMovementGenerator.cpp
-    WaypointMovementGenerator.h
-)
-
-set(SRC_GRP_MOVEMENT
-    movement/MoveSpline.cpp
-    movement/MoveSpline.h
-    movement/MoveSplineFlag.h
-    movement/MoveSplineInit.cpp
-    movement/MoveSplineInit.h
-    movement/MoveSplineInitArgs.h
-    movement/packet_builder.cpp
-    movement/packet_builder.h
-    movement/spline.cpp
-    movement/spline.h
-    movement/spline.impl.h
-    movement/typedefs.h
-    movement/util.cpp
-)
-
-set(SRC_GRP_OBJECT
-    AggressorAI.cpp
-    AggressorAI.h
-    AuctionHouseMgr.cpp
-    AuctionHouseMgr.h
-    Bag.cpp
-    Bag.h
-    Camera.cpp
-    Camera.h
-    Corpse.cpp
-    Corpse.h
-    Creature.cpp
-    Creature.h
-    CreatureAI.cpp
-    CreatureAI.h
-    CreatureAIImpl.h
-    CreatureAIRegistry.cpp
-    CreatureAIRegistry.h
-    CreatureAISelector.cpp
-    CreatureAISelector.h
-    CreatureEventAI.cpp
-    CreatureEventAI.h
-    CreatureEventAIMgr.cpp
-    CreatureEventAIMgr.h
-    DynamicObject.cpp
-    DynamicObject.h
-    Formulas.h
-    GameObject.cpp
-    GameObject.h
-    GMTicketMgr.cpp
-    GMTicketMgr.h
-    GuardAI.cpp
-    GuardAI.h
-    Guild.cpp
-    Guild.h
-    Item.cpp
-    Item.h
-    ItemEnchantmentMgr.cpp
-    ItemEnchantmentMgr.h
-    ItemPrototype.h
-    LootMgr.cpp
-    LootMgr.h
-    NullCreatureAI.cpp
-    NullCreatureAI.h
-    Object.cpp
-    Object.h
-    ObjectAccessor.cpp
-    ObjectAccessor.h
-    ObjectGuid.cpp
-    ObjectGuid.h
-    ObjectMgr.cpp
-    ObjectMgr.h
-    ObjectPosSelector.cpp
-    ObjectPosSelector.h
-    Pet.cpp
-    Pet.h
-    PetAI.cpp
-    PetAI.h
-    Player.cpp
-    Player.h
-    ReactorAI.cpp
-    ReactorAI.h
-    ReputationMgr.cpp
-    ReputationMgr.h
-    SocialMgr.cpp
-    SocialMgr.h
-    SpellMgr.cpp
-    SpellMgr.h
-    StatSystem.cpp
-    TemporarySummon.cpp
-    TemporarySummon.h
-    Totem.cpp
-    Totem.h
-    TotemAI.cpp
-    TotemAI.h
-    Unit.cpp
-    Unit.h
-    UnitEvents.h
-    UpdateFields.h
-    UpdateMask.h
-)
-
-set(SRC_GRP_OUTDOOR_PVP
-    OutdoorPvP/OutdoorPvP.cpp
-    OutdoorPvP/OutdoorPvP.h
-    OutdoorPvP/OutdoorPvPEP.cpp
-    OutdoorPvP/OutdoorPvPEP.h
-    OutdoorPvP/OutdoorPvPMgr.cpp
-    OutdoorPvP/OutdoorPvPMgr.h
-    OutdoorPvP/OutdoorPvPSI.cpp
-    OutdoorPvP/OutdoorPvPSI.h
-)
-
-set(SRC_GRP_REFERENCES
-    FollowerReference.cpp
-    FollowerReference.h
-    FollowerRefManager.h
-    GroupReference.cpp
-    GroupReference.h
-    GroupRefManager.h
-    HostileRefManager.cpp
-    HostileRefManager.h
-    MapReference.h
-    MapRefManager.h
-    ThreatManager.cpp
-    ThreatManager.h
-)
-
-set(SRC_GRP_SERVER
-    DBCEnums.h
-    DBCfmt.h
-    DBCStores.cpp
-    DBCStores.h
-    DBCStructure.h
-    Opcodes.cpp
-    Opcodes.h
-    SharedDefines.h
-    SQLStorages.cpp
-    SQLStorages.h
-    WorldSession.cpp
-    WorldSession.h
-    WorldSocket.cpp
-    WorldSocket.h
-)
-
-set(SRC_GRP_TOOL
-    CharacterDatabaseCleaner.cpp
-    CharacterDatabaseCleaner.h
-    Language.h
-    PlayerDump.cpp
-    PlayerDump.h
-)
-
-set(SRC_GRP_VMAPS
-    vmap/BIH.cpp
-    vmap/BIH.h
-    vmap/BIHWrap.h
-    vmap/DynamicTree.cpp
-    vmap/DynamicTree.h
-    vmap/GameObjectModel.cpp
-    vmap/GameObjectModel.h
-    vmap/IVMapManager.h
-    vmap/MapTree.cpp
-    vmap/MapTree.h
-    vmap/ModelInstance.cpp
-    vmap/ModelInstance.h
-    vmap/RegularGrid.h
-    vmap/TileAssembler.cpp
-    vmap/TileAssembler.h
-    vmap/VMapDefinitions.h
-    vmap/VMapFactory.cpp
-    vmap/VMapFactory.h
-    vmap/VMapManager2.cpp
-    vmap/VMapManager2.h
-    vmap/VMapTools.h
-    vmap/WorldModel.cpp
-    vmap/WorldModel.h
-)
-
-set(SRC_GRP_WORLD_HANDLERS
-    AccountMgr.cpp
-    AccountMgr.h
-    AddonHandler.cpp
-    AddonHandler.h
-    AuctionHouseHandler.cpp
-    Cell.h
-    CellImpl.h
-    Channel.cpp
-    Channel.h
-    ChannelHandler.cpp
-    ChannelMgr.cpp
-    ChannelMgr.h
-    CharacterHandler.cpp
-    Chat.cpp
-    Chat.h
-    ChatHandler.cpp
-    CombatHandler.cpp
-    CreatureLinkingMgr.cpp
-    CreatureLinkingMgr.h
-    DuelHandler.cpp
-    GameEventMgr.cpp
-    GameEventMgr.h
-    GMTicketHandler.cpp
-    GossipDef.cpp
-    GossipDef.h
-    GridDefines.h
-    GridMap.cpp
-    GridMap.h
-    GridNotifiers.cpp
-    GridNotifiers.h
-    GridNotifiersImpl.h
-    GridStates.cpp
-    GridStates.h
-    Group.cpp
-    Group.h
-    GroupHandler.cpp
-    GuildHandler.cpp
-    GuildMgr.cpp
-    GuildMgr.h
-    InstanceData.cpp
-    InstanceData.h
-    ItemHandler.cpp
-    LootHandler.cpp
-    Mail.cpp
-    Mail.h
-    MailHandler.cpp
-    Map.cpp
-    Map.h
-    MapManager.cpp
-    MapManager.h
-    MapPersistentStateMgr.cpp
-    MapPersistentStateMgr.h
-    MassMailMgr.cpp
-    MassMailMgr.h
-    MiscHandler.cpp
-    MoveMap.cpp
-    MoveMap.h
-    MoveMapSharedDefines.h
-    MovementHandler.cpp
-    NPCHandler.cpp
-    NPCHandler.h
-    ObjectGridLoader.cpp
-    ObjectGridLoader.h
-    Path.h
-    PetHandler.cpp
-    PetitionsHandler.cpp
-    PoolManager.cpp
-    PoolManager.h
-    QueryHandler.cpp
-    QuestDef.cpp
-    QuestDef.h
-    QuestHandler.cpp
-    ScriptMgr.cpp
-    ScriptMgr.h
-    SkillHandler.cpp
-    Spell.cpp
-    Spell.h
-    SpellAuraDefines.h
-    SpellAuras.cpp
-    SpellAuras.h
-    SpellEffects.cpp
-    SpellHandler.cpp
-    TaxiHandler.cpp
-    TradeHandler.cpp
-    Transports.cpp
-    Transports.h
-    UnitAuraProcHandler.cpp
-    UpdateData.cpp
-    UpdateData.h
-    WaypointManager.cpp
-    WaypointManager.h
-    Weather.cpp
-    Weather.h
-    World.cpp
-    World.h
-)
-
-set(LIBRARY_SRCS
-    ${SRC_GRP_AHBOT}
-    ${SRC_GRP_BATTLEGROUND}
-    ${SRC_GRP_CHAT_COMMANDS}
-    ${SRC_GRP_MOTION_GEN}
-    ${SRC_GRP_MOVEMENT}
-    ${SRC_GRP_OBJECT}
-    ${SRC_GRP_OUTDOOR_PVP}
-    ${SRC_GRP_REFERENCES}
-    ${SRC_GRP_SERVER}
-    ${SRC_GRP_TOOL}
-    ${SRC_GRP_VMAPS}
-    ${SRC_GRP_WORLD_HANDLERS}
-    pchdef.cpp
-    pchdef.h
-)
-
-source_group("AhBot"
-  FILES
-    ${SRC_GRP_AHBOT}
-)
-
-source_group("BattleGround"
-  FILES
-    ${SRC_GRP_BATTLEGROUND}
-)
-
-source_group("Chat Commands"
-  FILES
-    ${SRC_GRP_CHAT_COMMANDS}
-)
-
-source_group("Motion generators"
-  FILES
-    ${SRC_GRP_MOTION_GEN}
-)
-
-source_group("Movement"
-  FILES
-    ${SRC_GRP_MOVEMENT}
-)
-
-source_group("Object"
-  FILES
-    ${SRC_GRP_OBJECT}
-)
-
-source_group("Outdoor PvP"
-  FILES
-    ${SRC_GRP_OUTDOOR_PVP}
-)
-
-source_group("References"
-  FILES
-    ${SRC_GRP_REFERENCES}
-)
-
-source_group("Server"
-  FILES
-    ${SRC_GRP_SERVER}
-)
-
-source_group("Tool"
-  FILES
-    ${SRC_GRP_TOOL}
-)
-
-source_group("vmaps"
-  FILES
-    ${SRC_GRP_VMAPS}
-)
-
-source_group("World/Handlers"
-  FILES
-    ${SRC_GRP_WORLD_HANDLERS}
-)
-
-if(PCH)
-  include_directories(${CMAKE_CURRENT_BINARY_DIR})
+# Remove Anticheat.cpp.
+if(NOT USE_ANTICHEAT)
+    list(REMOVE_ITEM LIBRARY_SRCS "Anticheat/Anticheat.cpp")
 endif()
+
+if(NOT BUILD_SCRIPTDEV)
+  # exclude script folder for faster build time (used for dev mode)
+  set (EXCLUDE_DIR "AI/ScriptDevAI/scripts/")
+  foreach (TMP_PATH ${LIBRARY_SRCS})
+      string (FIND ${TMP_PATH} ${EXCLUDE_DIR} EXCLUDE_DIR_FOUND)
+      if (NOT ${EXCLUDE_DIR_FOUND} EQUAL -1)
+          list(REMOVE_ITEM LIBRARY_SRCS ${TMP_PATH})
+      endif ()
+  endforeach()
+endif()
+
+if(NOT BUILD_DEPRECATED_PLAYERBOT)
+  # exclude Playerbot folder
+  set (EXCLUDE_DIR "PlayerBot/")
+  foreach (TMP_PATH ${LIBRARY_SRCS})
+      string (FIND ${TMP_PATH} ${EXCLUDE_DIR} EXCLUDE_DIR_FOUND)
+      if (NOT ${EXCLUDE_DIR_FOUND} EQUAL -1)
+          list(REMOVE_ITEM LIBRARY_SRCS ${TMP_PATH})
+      endif ()
+  endforeach()
+endif()
+
+if(NOT BUILD_PLAYERBOTS)
+  # exclude Playerbots folder
+  set (EXCLUDE_DIR "Bots/")
+  foreach (TMP_PATH ${LIBRARY_SRCS})
+      string (FIND ${TMP_PATH} ${EXCLUDE_DIR} EXCLUDE_DIR_FOUND)
+      if (NOT ${EXCLUDE_DIR_FOUND} EQUAL -1)
+          list(REMOVE_ITEM LIBRARY_SRCS ${TMP_PATH})
+      endif ()
+  endforeach()
+endif()
+
+set(PCH_BASE_FILENAME "pchdef")
+# exclude pchdef files
+set (EXCLUDE_FILE "${PCH_BASE_FILENAME}")
+foreach (TMP_PATH ${LIBRARY_SRCS})
+    string (FIND ${TMP_PATH} ${EXCLUDE_FILE} EXCLUDE_FILE_FOUND)
+    if (NOT ${EXCLUDE_FILE_FOUND} EQUAL -1)
+        list(REMOVE_ITEM LIBRARY_SRCS ${TMP_PATH})
+    endif ()
+endforeach()
+
+# set pch file names
+set(PCH_FILE_HEADER "${PCH_BASE_FILENAME}.h")
+set(PCH_FILE_SOURCE "${PCH_BASE_FILENAME}.cpp")
+
+# Create visual studio groups using folder structure
+foreach(source ${LIBRARY_SRCS})
+    get_filename_component(source_path "${source}" PATH)
+    string(REPLACE "/" "\\" source_path_msvc "${source_path}")
+    source_group("${source_path_msvc}" FILES "${source}")
+endforeach()
 
 add_library(${LIBRARY_NAME} STATIC
   ${LIBRARY_SRCS}
 )
 
 target_link_libraries(${LIBRARY_NAME}
-  shared
-  detour
+  PRIVATE shared
+  PRIVATE g3dlite
+  PRIVATE Detour
+  PRIVATE zlib
 )
+
+# include additionals headers
+# TO DO: Remove this if when old playerbots get removed
+if(NOT BUILD_PLAYERBOTS)
+  set(ADDITIONAL_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/vmap
+    ${CMAKE_CURRENT_SOURCE_DIR}/AuctionHouseBot
+    ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround
+    ${CMAKE_CURRENT_SOURCE_DIR}/OutdoorPvP
+    ${CMAKE_CURRENT_SOURCE_DIR}/PlayerBot
+    ${CMAKE_BINARY_DIR}
+  )
+else()
+  set(ADDITIONAL_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/vmap
+    ${CMAKE_CURRENT_SOURCE_DIR}/AuctionHouseBot
+    ${CMAKE_CURRENT_SOURCE_DIR}/BattleGround
+    ${CMAKE_CURRENT_SOURCE_DIR}/OutdoorPvP
+    ${CMAKE_BINARY_DIR}
+  )
+endif()
+
+target_include_directories(${LIBRARY_NAME}
+  INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
+  PRIVATE ${ADDITIONAL_INCLUDE_DIRS}
+  PRIVATE ${Boost_INCLUDE_DIRS}
+)
+
+if(BUILD_PLAYERBOTS)
+  target_link_libraries(${LIBRARY_NAME} PUBLIC playerbots)
+  target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/src/modules/PlayerBots)
+  add_dependencies(${LIBRARY_NAME} playerbots)
+endif()
 
 if(UNIX)
   # Both systems don't have libdl and don't need them
   if (NOT (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME STREQUAL "NetBSD"))
-    target_link_libraries(${LIBRARY_NAME}
-      dl
-    )
+    target_link_libraries(${LIBRARY_NAME} PUBLIC dl)
   endif()
 endif()
 
-add_dependencies(${LIBRARY_NAME} revision.h)
+# Define BUILD_SCRIPTDEV if need
+if (BUILD_SCRIPTDEV)
+  add_definitions(-DBUILD_SCRIPTDEV)
+endif()
+
+# Define BUILD_AHBOT if need
+if (BUILD_AHBOT)
+  add_definitions(-DBUILD_AHBOT)
+endif()
+
+# Define BUILD_METRICS if need
+if (BUILD_METRICS)
+  add_definitions(-DBUILD_METRICS)
+endif()
+
+# Define BUILD_DEPRECATED_PLAYERBOT if need
+if (BUILD_DEPRECATED_PLAYERBOT)
+  add_definitions(-DBUILD_DEPRECATED_PLAYERBOT)
+endif()
+
+# Define ENABLE_PLAYERBOTS if need
+if (BUILD_PLAYERBOTS)
+  add_definitions(-DENABLE_PLAYERBOTS)
+endif()
+
+if (MSVC)
+  set_target_properties(${LIBRARY_NAME} PROPERTIES PROJECT_LABEL "Game")
+endif()
 
 # Generate precompiled header
 if(PCH)
-  if(MSVC OR XCODE)
-    if(MSVC)
-      set(game_pch "${CMAKE_CURRENT_SOURCE_DIR}/pchdef.cpp")
-    endif()
-    add_native_precompiled_header(${LIBRARY_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/pchdef.h)
-  elseif(CMAKE_COMPILER_IS_GNUCXX)
-    add_precompiled_header(${LIBRARY_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/pchdef.h)
-  endif()
+  target_precompile_headers(${LIBRARY_NAME} PRIVATE "${PCH_FILE_HEADER}")
 endif()

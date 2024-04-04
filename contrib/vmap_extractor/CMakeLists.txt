@@ -14,20 +14,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.5)
 project (MANGOS_VMAP_EXTRACT_IO)
-
-include(../../cmake/common.cmake)
-include(CheckPlatform)
 
 # uncomment next line to disable debug mode
 ADD_DEFINITIONS("-DIOMAP_DEBUG")
 # build setup currently only supports libmpq 0.4.x
 ADD_DEFINITIONS("-DUSE_LIBMPQ04")
-ADD_DEFINITIONS("-Wall")
-ADD_DEFINITIONS("-ggdb")
-ADD_DEFINITIONS("-O3")
 
-include_directories(../../dep/libmpq)
+if(UNIX)
+  ADD_DEFINITIONS("-ggdb")
+endif()
 
 add_subdirectory(vmapextract)

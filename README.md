@@ -1,87 +1,63 @@
-# C(ontinued)-MaNGOS -- README [![Build Status](https://travis-ci.org/cmangos/mangos-classic.svg?branch=master)](https://travis-ci.org/cmangos/mangos-classic)
+# C(ontinued)-MaNGOS -- README
+[![Windows](../../actions/workflows/windows.yml/badge.svg)](../../actions/workflows/windows.yml) [![Ubuntu](../../actions/workflows/ubuntu.yml/badge.svg)](../../actions/workflows/ubuntu.yml) [![MacOS](../../actions/workflows/macos.yml/badge.svg)](../../actions/workflows/macos.yml)
 
-This file is part of the CMaNGOS Project. See [AUTHORS](AUTHORS.md) file for Copyright information
+This file is part of the CMaNGOS Project. See [AUTHORS](AUTHORS.md) and [COPYRIGHT](COPYRIGHT.md) files for Copyright information
 
 ## Welcome to C(ontinued)-MaNGOS
 
-C(ontinued)-MaNGOS is a free project with the following goal:
+CMaNGOS is a free project with the following goal:
 
-  **Doing WoW-Emulation Right!**
+  **Doing Emulation Right!**
 
 This means, we want to focus on:
 
-* WoW-Emulation
-    This project is about developing a server software that is able to
-    emulate a well known MMORPG service.
-
 * Doing
-  * This project is focused on developing content!
+  * This project is focused on developing software!
   * Also there are many other aspects that need to be done and are
     considered equally important.
   * Anyone who wants to do stuff is very welcome to do so!
 
+* Emulation
+  * This project is about developing a server software that is able to
+    emulate a well known MMORPG service.
+
 * Right
   * Our goal must always be to provide the best code that we can.
-  * Being 'right' is defined by the behavior of the system
+  * Being 'right' is defined by the behaviour of the system
     we want to emulate.
   * Developing things right also includes documenting and discussing
     _how_ to do things better, hence...
-  * Learning and Teaching are very important in our view, and must
-    always be part of what we do.
+  * Learning and teaching are very important in our view, and must
+    always be a part of what we do.
 
 To be able to accomplish these goals, we support and promote:
 
 * Freedom
-  * of our work: Our work - including our code - is released under the GPL
-    So everbody is free to use and contribute to this open source project
-  * for our developers and contributers on things that interest them.
+  * of our work: Our work - including our code - is released under the GPL.
+    So everybody is free to use and contribute to this open source project.
+  * for our developers and contributors on things that interest them.
     No one here is telling anybody _what_ to do.
-    If you want somebody to do something for you, pay him,
+    If you want somebody to do something for you, pay them,
     but we are here to enjoy.
   * to have FUN with developing.
 
 * A friendly environment
-  * We try to let personal issues behind us.
-  * We only argue about content, and not about thin air!
+  * We try to leave personal issues behind us.
+  * We only argue about content and not about thin air!
   * We follow the [Netiquette](http://tools.ietf.org/html/rfc1855).
 
 -- The C(ontinued)-MaNGOS Team!
 
-## ScriptDev2
-  ScriptDev2 is a script library, an extention of the scripting capabilities
-  that comes with MaNGOS ( http://www.getmangos.com ), written in C++ and is
-  compatible with Windows and Linux. SQL needed for database support both
-  MySQL and PostgreSQL.
-
-  This script library provides unique scripts for NPCs, gameobjects, events
-  and other that need unique implementation.
-
-  Once ScriptDev2 is compiled it is automatically run by MaNGOS on server
-  startup.
-
-  For further information on ScriptDev2, please visit our project web site
-  at http://www.scriptdev2.com/
-
-  Documentation on various development related topics can be found in the
-  ../doc/ sub directory as well as on the web site.
-
-  The required SQL files for creating the database backend are included in
-  the ../sql/ sub directory. If you are updating from an older ScriptDev2
-  version, make sure to take a look at the SQL files provided in the
-  ../sql/updates/
-
 ## Further information
 
   You can find further information about CMaNGOS at the following places:
-  * [CMaNGOS Forum](http://cmangos.net/)
-  * CMaNGOS IRC channel: #cmangos on irc.rizon.net
+  * [CMaNGOS Discord](https://discord.gg/Dgzerzb)
   * [GitHub repositories](https://github.com/cmangos/)
   * [Issue tracker](https://github.com/cmangos/issues/issues)
   * [Pull Requests](https://github.com/cmangos/mangos-classic/pulls)
-  * [Current build status on Travis CI](https://travis-ci.org/cmangos/mangos-classic/)
   * [Wiki](https://github.com/cmangos/issues/wiki) with additional information on installation
   * [Contributing Guidelines](CONTRIBUTING.md)
-  * Documentation can be found in the doc/ subdirectory and on the github wiki
+  * Documentation can be found in the doc/ subdirectory and on the GitHub wiki
 
 ## License
 
@@ -104,8 +80,21 @@ To be able to accomplish these goals, we support and promote:
 
 ### Exceptions to GPL
 
+  World of Warcraft® ©2004 Blizzard Entertainment, Inc. All rights reserved.
+  World of Warcraft® content and materials mentioned or referenced are copyrighted by
+  Blizzard Entertainment, Inc. or its licensors.
+  World of Warcraft, WoW, Warcraft, The Frozen Throne, The Burning Crusade, Wrath of the Lich King,
+  Cataclysm, Mists of Pandaria, Ashbringer, Dark Portal, Darkmoon Faire, Frostmourne, Onyxia's Lair,
+  Diablo, Hearthstone, Heroes of Azeroth, Reaper of Souls, Starcraft, Battle Net, Blizzcon, Glider,
+  Blizzard and Blizzard Entertainment are trademarks or registered trademarks of
+  Blizzard Entertainment, Inc. in the U.S. and/or other countries.
+
+  Any World of Warcraft® content and materials mentioned or referenced are copyrighted by
+  Blizzard Entertainment, Inc. or its licensors.
+  CMaNGOS project is not affiliated with Blizzard Entertainment, Inc. or its licensors.
+
   Some third-party libraries CMaNGOS uses have other licenses, that must be
-  uphold.  These libraries are located within the dep/ directory
+  upheld.  These libraries are located within the dep/ directory
 
   In addition, as a special exception, the CMaNGOS project
   gives permission to link the code of its release of MaNGOS with the

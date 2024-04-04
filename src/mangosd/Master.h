@@ -26,12 +26,14 @@
 #include "Common.h"
 #include "Policies/Singleton.h"
 
+#include <boost/asio.hpp>
+
 /// Start the server
 class Master
 {
     public:
         int Run();
-        static volatile uint32 m_masterLoopCounter;
+        static volatile bool m_canBeKilled;
 
     private:
         bool _StartDB();
@@ -41,6 +43,9 @@ class Master
         static void _OnSignal(int s);
 
         void clearOnlineAccounts();
+
+        boost::asio::io_service m_service;
+        boost::asio::io_service m_raService;
 };
 
 #define sMaster MaNGOS::Singleton<Master>::Instance()

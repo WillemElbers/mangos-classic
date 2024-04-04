@@ -18,14 +18,13 @@
 
 #ifndef _VMAPDEFINITIONS_H
 #define _VMAPDEFINITIONS_H
-#include <cstring>
 
 #define LIQUID_TILE_SIZE (533.333f / 128.f)
 
 namespace VMAP
 {
-    const char VMAP_MAGIC[] = "VMAP_5.0";                   // used in final vmap files
-    const char RAW_VMAP_MAGIC[] = "VMAP005";                // used in extracted vmap files with raw data
+    const char VMAP_MAGIC[] = "VMAP_7.0";                   // used in final vmap files
+    const char RAW_VMAP_MAGIC[] = "VMAPs05";                // used in extracted vmap files with raw data
     const char GAMEOBJECT_MODELS[] = "temp_gameobject_models";
 
     // defined in TileAssembler.cpp currently...
@@ -33,8 +32,8 @@ namespace VMAP
 }
 
 #ifndef NO_CORE_FUNCS
-#include "Errors.h"
-#include "Log.h"
+#include "Util/Errors.h"
+#include "Log/Log.h"
 #define ERROR_LOG(...) sLog.outError(__VA_ARGS__);
 #elif defined MMAP_GENERATOR
 #include <assert.h>

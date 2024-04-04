@@ -7,15 +7,20 @@
 *.o
 *.pdb
 *.so
+*.idb
 
 ## Linux exes have no extension
 RecastDemo/Bin/RecastDemo
+RecastDemo/Bin/Tests
 
 # Build directory
 RecastDemo/Build
 
-# Ignore some meshes based on name
-RecastDemo/Bin/Meshes/_*
+# XCode debug symbols archive
+RecastDemo/Bin/*.dSYM
+
+# Ignore meshes
+RecastDemo/Bin/Meshes/*
 
 ## Logs and databases #
 *.log
@@ -41,3 +46,10 @@ RecastDemo/Contrib/SDL/*
 
 ## Generated doc files
 Docs/html
+
+## CMake build cache
+build
+
+## IDE files
+.idea/
+cmake-build-*/

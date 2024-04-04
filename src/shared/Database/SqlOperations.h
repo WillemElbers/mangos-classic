@@ -96,19 +96,19 @@ class SqlResultQueue
 
     public:
         void Update();
-        void Add(MaNGOS::IQueryCallback *);
+        void Add(MaNGOS::IQueryCallback*);
 };
 
 class SqlQuery : public SqlOperation
 {
     private:
         std::vector<char> m_sql;
-        MaNGOS::IQueryCallback * const m_callback;
-        SqlResultQueue * const m_queue;
+        MaNGOS::IQueryCallback* const m_callback;
+        SqlResultQueue* const m_queue;
 
     public:
         SqlQuery(const char* sql, MaNGOS::IQueryCallback* callback, SqlResultQueue* queue)
-            : m_sql(strlen(sql)+1), m_callback(callback), m_queue(queue)
+            : m_sql(strlen(sql) + 1), m_callback(callback), m_queue(queue)
         {
             memcpy(&m_sql[0], sql, m_sql.size());
         }
@@ -120,16 +120,16 @@ class SqlQueryHolder
 {
         friend class SqlQueryHolderEx;
     private:
-        typedef std::pair<const char*, QueryResult*> SqlResultPair;
+        typedef std::pair<const char*, std::unique_ptr<QueryResult>> SqlResultPair;
         std::vector<SqlResultPair> m_queries;
     public:
         SqlQueryHolder() {}
-        ~SqlQueryHolder();
+        virtual ~SqlQueryHolder();
         bool SetQuery(size_t index, const char* sql);
         bool SetPQuery(size_t index, const char* format, ...) ATTR_PRINTF(3, 4);
         void SetSize(size_t size);
-        QueryResult* GetResult(size_t index);
-        void SetResult(size_t index, QueryResult* result);
+        std::unique_ptr<QueryResult> GetResult(size_t index);
+        void SetResult(size_t index, std::unique_ptr<QueryResult> queryResult);
         bool Execute(MaNGOS::IQueryCallback* callback, SqlDelayThread* thread, SqlResultQueue* queue);
 };
 

@@ -20,42 +20,42 @@
     \ingroup mangosd
 */
 
-#ifndef WIN32
-#include "PosixDaemon.h"
-#endif
-
 #include "Common.h"
 #include "Master.h"
-#include "WorldSocket.h"
+#include "Server/WorldSocket.h"
 #include "WorldRunnable.h"
-#include "World.h"
-#include "Log.h"
-#include "Timer.h"
+#include "World/World.h"
+#include "Log/Log.h"
+#include "Util/Timer.h"
 #include "SystemConfig.h"
 #include "CliRunnable.h"
 #include "RASocket.h"
-#include "Util.h"
+#include "Util/Util.h"
 #include "revision_sql.h"
 #include "MaNGOSsoap.h"
-#include "MassMailMgr.h"
-#include "DBCStores.h"
+#include "Mails/MassMailMgr.h"
+#include "Server/DBCStores.h"
 
 #include "Config/Config.h"
 #include "Database/DatabaseEnv.h"
 #include "Policies/Singleton.h"
-#include "Network/Listener.hpp"
-#include "Network/Socket.hpp"
+#include "Network/AsyncListener.hpp"
+#include "Network/AsyncSocket.hpp"
+
+#include <boost/thread.hpp>
 
 #include <memory>
 
-#ifdef WIN32
-#include "ServiceWin32.h"
+#ifdef _WIN32
+#include "Platform/ServiceWin32.h"
 extern int m_ServiceStatus;
+#else
+#include "Platform/PosixDaemon.h"
 #endif
 
 INSTANTIATE_SINGLETON_1(Master);
 
-volatile uint32 Master::m_masterLoopCounter = 0;
+volatile bool Master::m_canBeKilled = false;
 
 class FreezeDetectorRunnable : public MaNGOS::Runnable
 {
@@ -79,7 +79,6 @@ class FreezeDetectorRunnable : public MaNGOS::Runnable
                 MaNGOS::Thread::Sleep(1000);
 
                 uint32 curtime = WorldTimer::getMSTime();
-                // DEBUG_LOG("anti-freeze: time=%u, counters=[%u; %u]",curtime,Master::m_masterLoopCounter,World::m_worldLoopCounter);
 
                 // normal work
                 if (w_loops != World::m_worldLoopCounter)
@@ -126,7 +125,7 @@ int Master::Run()
     ///- Initialize the World
     sWorld.SetInitialWorldSettings();
 
-#ifndef WIN32
+#ifndef _WIN32
     detachDaemon();
 #endif
     // server loaded successfully => enable async DB requests
@@ -134,6 +133,7 @@ int Master::Run()
     CharacterDatabase.AllowAsyncTransactions();
     WorldDatabase.AllowAsyncTransactions();
     LoginDatabase.AllowAsyncTransactions();
+    LogsDatabase.AllowAsyncTransactions();
 
     ///- Catch termination signals
     _HookSignals();
@@ -149,9 +149,11 @@ int Master::Run()
         LoginDatabase.DirectPExecute("UPDATE realmlist SET realmflags = realmflags & ~(%u), population = 0, realmbuilds = '%s'  WHERE id = '%u'", REALM_FLAG_OFFLINE, builds.c_str(), realmID);
     }
 
+    sWorld.StartLFGQueueThread();
+
     MaNGOS::Thread* cliThread = nullptr;
 
-#ifdef WIN32
+#ifdef _WIN32
     if (sConfig.GetBoolDefault("Console.Enable", true) && (m_ServiceStatus == -1)/* need disable console in service mode*/)
 #else
     if (sConfig.GetBoolDefault("Console.Enable", true))
@@ -162,7 +164,7 @@ int Master::Run()
     }
 
     ///- Handle affinity for multiple processors and process priority on Windows
-#ifdef WIN32
+#ifdef _WIN32
     {
         HANDLE hProcess = GetCurrentProcess();
 
@@ -216,20 +218,51 @@ int Master::Run()
     }
 
     {
-        //auto const listenIP = sConfig.GetStringDefault("BindIP", "0.0.0.0");
-        MaNGOS::Listener<WorldSocket> listener(sWorld.getConfig(CONFIG_UINT32_PORT_WORLD), 8);
+        int32 networkThreadCount = sConfig.GetIntDefault("Network.Threads", 1);
+        if (networkThreadCount <= 0)
+        {
+            sLog.outError("Invalid network thread workers setting in mangosd.conf. (%d) should be > 0", networkThreadCount);
+            networkThreadCount = 1;
+        }
+        std::string bindIp = sConfig.GetStringDefault("BindIP", "0.0.0.0");
+        int32 port = int32(sWorld.getConfig(CONFIG_UINT32_PORT_WORLD));
+        MaNGOS::AsyncListener<WorldSocket> listener(m_service, bindIp, port);
 
-        std::unique_ptr<MaNGOS::Listener<RASocket>> raListener;
-        if (sConfig.GetBoolDefault("Ra.Enable", false))
-            raListener.reset(new MaNGOS::Listener<RASocket>(sConfig.GetIntDefault("Ra.Port", 3443), 1));
+        std::vector<std::thread> threads;
+        for (int32 i = 0; i < networkThreadCount; ++i)
+            threads.emplace_back([&]() { m_service.run(); });
+
+        std::unique_ptr<MaNGOS::AsyncListener<RASocket>> raListener;
+        std::string raBindIp = sConfig.GetStringDefault("Ra.IP", "0.0.0.0");
+        int32 raPort = sConfig.GetIntDefault("Ra.Port", 3443);
+        std::thread m_raThread;
+        bool raEnable = sConfig.GetBoolDefault("Ra.Enable", false);
+        if (raEnable)
+        {
+            raListener.reset(new MaNGOS::AsyncListener<RASocket>(m_raService, raBindIp, raPort));
+            m_raThread = std::thread([this]() { m_raService.run(); });
+        }
 
         std::unique_ptr<SOAPThread> soapThread;
         if (sConfig.GetBoolDefault("SOAP.Enabled", false))
-            soapThread.reset(new SOAPThread("0.0.0.0", sConfig.GetIntDefault("SOAP.Port", 7878)));
+            soapThread.reset(new SOAPThread(sConfig.GetStringDefault("SOAP.IP", "127.0.0.1"), sConfig.GetIntDefault("SOAP.Port", 7878)));
 
         // wait for shut down and then let things go out of scope to close them down
         while (!World::IsStopped())
             std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        world_thread.wait();
+
+        m_service.stop();
+
+        if (raEnable)
+        {
+            m_raService.stop();
+            m_raThread.join();
+        }
+
+        for (int32 i = 0; i < networkThreadCount; ++i)
+            threads[i].join();
     }
 
     ///- Stop freeze protection before shutdown tasks
@@ -255,54 +288,39 @@ int Master::Run()
     // send all still queued mass mails (before DB connections shutdown)
     sMassMailMgr.Update(true);
 
+#ifdef ENABLE_PLAYERBOTS
+    // kick and save all players
+    sWorld.KickAll(true);
+#endif
+
     ///- Wait for DB delay threads to end
     CharacterDatabase.HaltDelayThread();
     WorldDatabase.HaltDelayThread();
     LoginDatabase.HaltDelayThread();
+    LogsDatabase.HaltDelayThread();
 
     sLog.outString("Halting process...");
 
     if (cliThread)
     {
-#ifdef WIN32
-
-        // this only way to terminate CLI thread exist at Win32 (alt. way exist only in Windows Vista API)
-        //_exit(1);
-        // send keyboard input to safely unblock the CLI thread
-        INPUT_RECORD b[5];
+#ifdef _WIN32
+        // send keyboard input to safely unblock the CLI thread that is waiting for an user input
         HANDLE hStdIn = GetStdHandle(STD_INPUT_HANDLE);
-        b[0].EventType = KEY_EVENT;
-        b[0].Event.KeyEvent.bKeyDown = TRUE;
-        b[0].Event.KeyEvent.uChar.AsciiChar = 'X';
-        b[0].Event.KeyEvent.wVirtualKeyCode = 'X';
-        b[0].Event.KeyEvent.wRepeatCount = 1;
+        INPUT_RECORD ir[2] = { 0 };
 
-        b[1].EventType = KEY_EVENT;
-        b[1].Event.KeyEvent.bKeyDown = FALSE;
-        b[1].Event.KeyEvent.uChar.AsciiChar = 'X';
-        b[1].Event.KeyEvent.wVirtualKeyCode = 'X';
-        b[1].Event.KeyEvent.wRepeatCount = 1;
+        ir[0].EventType = KEY_EVENT;
+        ir[0].Event.KeyEvent.bKeyDown = TRUE;
+        ir[0].Event.KeyEvent.wRepeatCount = 1;
+        ir[0].Event.KeyEvent.uChar.AsciiChar = VK_RETURN;
+        ir[0].Event.KeyEvent.dwControlKeyState = 0;
 
-        b[2].EventType = KEY_EVENT;
-        b[2].Event.KeyEvent.bKeyDown = TRUE;
-        b[2].Event.KeyEvent.dwControlKeyState = 0;
-        b[2].Event.KeyEvent.uChar.AsciiChar = '\r';
-        b[2].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
-        b[2].Event.KeyEvent.wRepeatCount = 1;
-        b[2].Event.KeyEvent.wVirtualScanCode = 0x1c;
+        ir[1] = ir[0];
+        ir[1].Event.KeyEvent.bKeyDown = FALSE;
 
-        b[3].EventType = KEY_EVENT;
-        b[3].Event.KeyEvent.bKeyDown = FALSE;
-        b[3].Event.KeyEvent.dwControlKeyState = 0;
-        b[3].Event.KeyEvent.uChar.AsciiChar = '\r';
-        b[3].Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
-        b[3].Event.KeyEvent.wVirtualScanCode = 0x1c;
-        b[3].Event.KeyEvent.wRepeatCount = 1;
-        DWORD numb;
-        BOOL ret = WriteConsoleInput(hStdIn, b, 4, &numb);
+        DWORD dwNumWrtn = -1;
+        WriteConsoleInput(hStdIn, ir, 2, &dwNumWrtn);
 
         cliThread->wait();
-
 #else
 
         cliThread->destroy();
@@ -311,6 +329,9 @@ int Master::Run()
 
         delete cliThread;
     }
+
+    // mark this can be killable
+    m_canBeKilled = true;
 
     ///- Exit the process with specified return value
     return World::GetExitCode();
@@ -407,6 +428,42 @@ bool Master::_StartDB()
         return false;
     }
 
+    ///- Get logs database info from configuration file
+    dbstring = sConfig.GetStringDefault("LogsDatabaseInfo", "");
+    nConnections = sConfig.GetIntDefault("LogsDatabaseConnections", 1);
+    if (dbstring.empty())
+    {
+        sLog.outError("logs database not specified in configuration file");
+
+        ///- Wait for already started DB delay threads to end
+        WorldDatabase.HaltDelayThread();
+        CharacterDatabase.HaltDelayThread();
+        LoginDatabase.HaltDelayThread();
+        return false;
+    }
+
+    ///- Initialise the logs database
+    sLog.outString("Logs Database total connections: %i", nConnections + 1);
+    if (!LogsDatabase.Initialize(dbstring.c_str(), nConnections))
+    {
+        sLog.outError("Cannot connect to logs database %s", dbstring.c_str());
+
+        ///- Wait for already started DB delay threads to end
+        WorldDatabase.HaltDelayThread();
+        CharacterDatabase.HaltDelayThread();
+        LoginDatabase.HaltDelayThread();
+        return false;
+    }
+
+    if (!LogsDatabase.CheckRequiredField("logs_db_version", REVISION_DB_LOGS))
+    {
+        ///- Wait for already started DB delay threads to end
+        WorldDatabase.HaltDelayThread();
+        CharacterDatabase.HaltDelayThread();
+        LoginDatabase.HaltDelayThread();
+        return false;
+    }
+
     sLog.outString();
 
     ///- Get the realm Id from the configuration file
@@ -465,6 +522,14 @@ void Master::_OnSignal(int s)
             break;
     }
 
+    // give a 30 sec timeout in case of Master cannot finish properly
+    int32 timeOut = 200;
+    while (!m_canBeKilled && timeOut > 0)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        --timeOut;
+    }
+
     signal(s, _OnSignal);
 }
 
@@ -481,9 +546,9 @@ void Master::_HookSignals()
 /// Unhook the signals before leaving
 void Master::_UnhookSignals()
 {
-    signal(SIGINT, 0);
-    signal(SIGTERM, 0);
+    signal(SIGINT, nullptr);
+    signal(SIGTERM, nullptr);
 #ifdef _WIN32
-    signal(SIGBREAK, 0);
+    signal(SIGBREAK, nullptr);
 #endif
 }

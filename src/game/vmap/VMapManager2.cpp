@@ -16,7 +16,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <iostream>
 #include <iomanip>
 #include <string>
 #include <sstream>
@@ -25,6 +24,7 @@
 #include "ModelInstance.h"
 #include "WorldModel.h"
 #include "VMapDefinitions.h"
+#include "Maps/GridMapDefines.h"
 
 using G3D::Vector3;
 
@@ -41,13 +41,13 @@ namespace VMAP
 
     VMapManager2::~VMapManager2(void)
     {
-        for (InstanceTreeMap::iterator i = iInstanceMapTrees.begin(); i != iInstanceMapTrees.end(); ++i)
+        for (auto& iInstanceMapTree : iInstanceMapTrees)
         {
-            delete i->second;
+            delete iInstanceMapTree.second;
         }
-        for (ModelFileMap::iterator i = iLoadedModelFiles.begin(); i != iLoadedModelFiles.end(); ++i)
+        for (auto& iLoadedModelFile : iLoadedModelFiles)
         {
-            delete i->second.getModel();
+            delete iLoadedModelFile.second.getModel();
         }
     }
 
@@ -89,6 +89,16 @@ namespace VMAP
     }
 
     //=========================================================
+    // Check if specified map have tile loaded
+    bool VMapManager2::IsTileLoaded(uint32 mapId, uint32 x, uint32 y) const
+    {
+        InstanceTreeMap::const_iterator instanceTree = iInstanceMapTrees.find(mapId);
+        if (instanceTree == iInstanceMapTrees.end())
+            return false;
+        return instanceTree->second->IsTileLoaded(x, y);
+    }
+
+    //=========================================================
     // load one tile (internal use only)
 
     bool VMapManager2::_loadMap(unsigned int pMapId, const std::string& basePath, uint32 tileX, uint32 tileY)
@@ -99,8 +109,16 @@ namespace VMAP
             std::string mapFileName = getMapFileName(pMapId);
             StaticMapTree* newTree = new StaticMapTree(pMapId, basePath);
             if (!newTree->InitMap(mapFileName, this))
+            {
+                delete newTree;
                 return false;
-            instanceTree = iInstanceMapTrees.insert(InstanceTreeMap::value_type(pMapId, newTree)).first;
+            }
+
+            // insert new data
+            {
+                std::lock_guard<std::mutex> lock(m_vmStaticMapMutex);
+                instanceTree = iInstanceMapTrees.insert(InstanceTreeMap::value_type(pMapId, newTree)).first;
+            }
         }
         return instanceTree->second->LoadMapTile(tileX, tileY, this);
     }
@@ -139,7 +157,7 @@ namespace VMAP
 
     //==========================================================
 
-    bool VMapManager2::isInLineOfSight(unsigned int pMapId, float x1, float y1, float z1, float x2, float y2, float z2)
+    bool VMapManager2::isInLineOfSight(unsigned int pMapId, float x1, float y1, float z1, float x2, float y2, float z2, bool ignoreM2Model)
     {
         if (!isLineOfSightCalcEnabled()) return true;
         bool result = true;
@@ -150,7 +168,7 @@ namespace VMAP
             Vector3 pos2 = convertPositionToInternalRep(x2, y2, z2);
             if (pos1 != pos2)
             {
-                result = instanceTree->second->isInLineOfSight(pos1, pos2);
+                result = instanceTree->second->isInLineOfSight(pos1, pos2, ignoreM2Model);
             }
         }
         return result;
@@ -224,7 +242,23 @@ namespace VMAP
         return result;
     }
 
-    bool VMapManager2::GetLiquidLevel(uint32 pMapId, float x, float y, float z, uint8 ReqLiquidType, float& level, float& floor, uint32& type) const
+    uint8 GetLiquidMask(uint32 type) // wotlk uses dbc
+    {
+        switch (type)
+        {
+            case 0: return MAP_LIQUID_TYPE_NO_WATER;
+            case 1: return MAP_LIQUID_TYPE_WATER;
+            case 2: return MAP_LIQUID_TYPE_OCEAN;
+            case 3: return MAP_LIQUID_TYPE_MAGMA;
+            case 4: return MAP_LIQUID_TYPE_SLIME;
+            case 21: return MAP_LIQUID_TYPE_SLIME;
+            case 41: return MAP_LIQUID_TYPE_WATER;
+            case 61: return MAP_LIQUID_TYPE_WATER;
+            default: return 0;
+        }
+    }
+
+    bool VMapManager2::GetLiquidLevel(uint32 pMapId, float x, float y, float z, uint8 ReqLiquidTypeMask, float& level, float& floor, uint32& type) const
     {
         InstanceTreeMap::const_iterator instanceTree = iInstanceMapTrees.find(pMapId);
         if (instanceTree != iInstanceMapTrees.end())
@@ -235,7 +269,7 @@ namespace VMAP
             {
                 floor = info.ground_Z;
                 type = info.hitModel->GetLiquidType();
-                if (ReqLiquidType && !(type & ReqLiquidType))
+                if (ReqLiquidTypeMask && !(GetLiquidMask(type) & ReqLiquidTypeMask))
                     return false;
                 if (info.hitInstance->GetLiquidLevel(pos, info, level))
                     return true;
@@ -248,6 +282,7 @@ namespace VMAP
 
     WorldModel* VMapManager2::acquireModelInstance(const std::string& basepath, const std::string& filename)
     {
+        std::lock_guard<std::mutex> lock(m_vmModelMutex);
         ModelFileMap::iterator model = iLoadedModelFiles.find(filename);
         if (model == iLoadedModelFiles.end())
         {
@@ -258,6 +293,8 @@ namespace VMAP
                 delete worldmodel;
                 return nullptr;
             }
+
+            // insert new data
             DEBUG_FILTER_LOG(LOG_FILTER_MAP_LOADING, "VMapManager2: loading file '%s%s'.", basepath.c_str(), filename.c_str());
             model = iLoadedModelFiles.insert(std::pair<std::string, ManagedModel>(filename, ManagedModel())).first;
             model->second.setModel(worldmodel);

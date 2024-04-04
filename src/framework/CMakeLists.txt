@@ -34,14 +34,8 @@ set(SRC_GRP_GAMESYSTEM
     GameSystem/TypeContainerVisitor.h
 )
 
-set(SRC_GRP_PLATFORM
-    Platform/CompilerDefs.h
-    Platform/Define.h
-)
-
 set(SRC_GRP_POLICIES
     Policies/CreationPolicy.h
-    Policies/MemoryManagement.cpp
     Policies/ObjectLifeTime.cpp
     Policies/ObjectLifeTime.h
     Policies/Singleton.h
@@ -49,7 +43,6 @@ set(SRC_GRP_POLICIES
 )
 
 set(SRC_GRP_UTIL
-    Utilities/ByteConverter.h
     Utilities/Callback.h
     Utilities/EventProcessor.cpp
     Utilities/EventProcessor.h
@@ -65,7 +58,6 @@ set(SRC_GRP_LINKED_REFERENCE
 set(LIBRARY_SRCS
     ${SRC_GRP_DYNAMIC}
     ${SRC_GRP_GAMESYSTEM}
-    ${SRC_GRP_PLATFORM}
     ${SRC_GRP_POLICIES}
     ${SRC_GRP_UTIL}
     ${SRC_GRP_LINKED_REFERENCE}
@@ -79,11 +71,6 @@ source_group("Dynamic"
 source_group("GameSystem"
   FILES
     ${SRC_GRP_GAMESYSTEM}
-)
-
-source_group("Platform"
-  FILES
-    ${SRC_GRP_PLATFORM}
 )
 
 source_group("Policies"
@@ -101,18 +88,14 @@ source_group("Utilities\\LinkedReference"
     ${SRC_GRP_LINKED_REFERENCE}
 )
 
-include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
 add_library(${LIBRARY_NAME} STATIC
   ${LIBRARY_SRCS}
 )
 
-if(NOT TBB_USE_EXTERNAL AND NOT USE_STD_MALLOC)
-  add_dependencies(${LIBRARY_NAME} TBB_Project)
-endif()
-
 target_link_libraries(${LIBRARY_NAME}
-  ${TBB_LIBRARIES}
+  PUBLIC shared
+)
+
+target_include_directories(${LIBRARY_NAME}
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 )

@@ -43,7 +43,7 @@ class NavMeshTesterTool : public SampleTool
 		TOOLMODE_DISTANCE_TO_WALL,
 		TOOLMODE_FIND_POLYS_IN_CIRCLE,
 		TOOLMODE_FIND_POLYS_IN_SHAPE,
-		TOOLMODE_FIND_LOCAL_NEIGHBOURHOOD,
+		TOOLMODE_FIND_LOCAL_NEIGHBOURHOOD
 	};
 	
 	ToolMode m_toolMode;
@@ -94,7 +94,6 @@ class NavMeshTesterTool : public SampleTool
 	
 public:
 	NavMeshTesterTool();
-	~NavMeshTesterTool();
 
 	virtual int type() { return TOOL_NAVMESH_TESTER; }
 	virtual void init(Sample* sample);
@@ -112,3 +111,4 @@ public:
 };
 
 #endif // NAVMESHTESTERTOOL_H
+

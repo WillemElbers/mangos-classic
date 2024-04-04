@@ -16,13 +16,17 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "SDL.h"
 #include "SDL_opengl.h"
+#ifdef __APPLE__
+#	include <OpenGL/glu.h>
+#else
+#	include <GL/glu.h>
+#endif
 #include "imgui.h"
 #include "NavMeshTesterTool.h"
 #include "Sample.h"
@@ -32,6 +36,7 @@
 #include "DetourNavMeshBuilder.h"
 #include "DetourDebugDraw.h"
 #include "DetourCommon.h"
+#include "DetourPathCorridor.h"
 
 #ifdef WIN32
 #	define snprintf _snprintf
@@ -40,7 +45,7 @@
 // Uncomment this to dump all the requests in stdout.
 #define DUMP_REQS
 
-// Returns a random number [0..1)
+// Returns a random number [0..1]
 static float frand()
 {
 //	return ((float)(rand() & 0xffff)/(float)0xffff);
@@ -53,52 +58,6 @@ inline bool inRange(const float* v1, const float* v2, const float r, const float
 	const float dy = v2[1] - v1[1];
 	const float dz = v2[2] - v1[2];
 	return (dx*dx + dz*dz) < r*r && fabsf(dy) < h;
-}
-
-
-static int fixupCorridor(dtPolyRef* path, const int npath, const int maxPath,
-						 const dtPolyRef* visited, const int nvisited)
-{
-	int furthestPath = -1;
-	int furthestVisited = -1;
-	
-	// Find furthest common polygon.
-	for (int i = npath-1; i >= 0; --i)
-	{
-		bool found = false;
-		for (int j = nvisited-1; j >= 0; --j)
-		{
-			if (path[i] == visited[j])
-			{
-				furthestPath = i;
-				furthestVisited = j;
-				found = true;
-			}
-		}
-		if (found)
-			break;
-	}
-
-	// If no intersection found just return current path. 
-	if (furthestPath == -1 || furthestVisited == -1)
-		return npath;
-	
-	// Concatenate paths.	
-
-	// Adjust beginning of the buffer to include the visited.
-	const int req = nvisited - furthestVisited;
-	const int orig = rcMin(furthestPath+1, npath);
-	int size = rcMax(0, npath-orig);
-	if (req+size > maxPath)
-		size = maxPath-req;
-	if (size)
-		memmove(path+req, path+orig, size*sizeof(dtPolyRef));
-	
-	// Store visited
-	for (int i = 0; i < req; ++i)
-		path[i] = visited[(nvisited-1)-i];				
-	
-	return req+size;
 }
 
 // This function checks if the path has a small U-turn, that is,
@@ -228,6 +187,7 @@ NavMeshTesterTool::NavMeshTesterTool() :
 	m_sposSet(false),
 	m_eposSet(false),
 	m_pathIterNum(0),
+	m_pathIterPolyCount(0),
 	m_steerPointCount(0)
 {
 	m_filter.setIncludeFlags(SAMPLE_POLYFLAGS_ALL ^ SAMPLE_POLYFLAGS_DISABLED);
@@ -239,10 +199,6 @@ NavMeshTesterTool::NavMeshTesterTool() :
 	
 	m_neighbourhoodRadius = 2.5f;
 	m_randomRadius = 5.0f;
-}
-
-NavMeshTesterTool::~NavMeshTesterTool()
-{
 }
 
 void NavMeshTesterTool::init(Sample* sample)
@@ -562,7 +518,8 @@ void NavMeshTesterTool::handleToggle()
 	int nvisited = 0;
 	m_navQuery->moveAlongSurface(m_pathIterPolys[0], m_iterPos, moveTgt, &m_filter,
 								 result, visited, &nvisited, 16);
-	m_pathIterPolyCount = fixupCorridor(m_pathIterPolys, m_pathIterPolyCount, MAX_POLYS, visited, nvisited);
+	m_pathIterPolyCount = dtMergeCorridorStartMoved(m_pathIterPolys, m_pathIterPolyCount, 
+								 MAX_POLYS, visited, nvisited);
 	m_pathIterPolyCount = fixupShortcuts(m_pathIterPolys, m_pathIterPolyCount, m_navQuery);
 
 	float h = 0;
@@ -745,7 +702,7 @@ void NavMeshTesterTool::recalc()
 					// Find movement delta.
 					float delta[3], len;
 					dtVsub(delta, steerPos, iterPos);
-					len = dtSqrt(dtVdot(delta,delta));
+					len = dtMathSqrtf(dtVdot(delta, delta));
 					// If the steer target is end of path or off-mesh link, do not move past the location.
 					if ((endOfPath || offMeshConnection) && len < STEP_SIZE)
 						len = 1;
@@ -761,7 +718,7 @@ void NavMeshTesterTool::recalc()
 					m_navQuery->moveAlongSurface(polys[0], iterPos, moveTgt, &m_filter,
 												 result, visited, &nvisited, 16);
 
-					npolys = fixupCorridor(polys, npolys, MAX_POLYS, visited, nvisited);
+					npolys = dtMergeCorridorStartMoved(polys, npolys, MAX_POLYS, visited, nvisited);
 					npolys = fixupShortcuts(polys, npolys, m_navQuery);
 
 					float h = 0;
@@ -1038,7 +995,7 @@ static void getPolyCenter(dtNavMesh* navMesh, dtPolyRef ref, float* center)
 
 void NavMeshTesterTool::handleRender()
 {
-	DebugDrawGL dd;
+	duDebugDraw& dd = m_sample->getDebugDraw();
 	
 	static const unsigned int startCol = duRGBA(128,25,0,192);
 	static const unsigned int endCol = duRGBA(51,102,0,129);
@@ -1143,7 +1100,7 @@ void NavMeshTesterTool::handleRender()
 			dd.begin(DU_DRAW_LINES, 2.0f);
 			for (int i = 0; i < m_nstraightPath-1; ++i)
 			{
-				unsigned int col = 0;
+				unsigned int col;
 				if (m_straightPathFlags[i] & DT_STRAIGHTPATH_OFFMESH_CONNECTION)
 					col = offMeshCol;
 				else
@@ -1156,10 +1113,10 @@ void NavMeshTesterTool::handleRender()
 			dd.begin(DU_DRAW_POINTS, 6.0f);
 			for (int i = 0; i < m_nstraightPath; ++i)
 			{
-				unsigned int col = 0;
+				unsigned int col;
 				if (m_straightPathFlags[i] & DT_STRAIGHTPATH_START)
 					col = startCol;
-				else if (m_straightPathFlags[i] & DT_STRAIGHTPATH_START)
+				else if (m_straightPathFlags[i] & DT_STRAIGHTPATH_END)
 					col = endCol;
 				else if (m_straightPathFlags[i] & DT_STRAIGHTPATH_OFFMESH_CONNECTION)
 					col = offMeshCol;
@@ -1395,7 +1352,7 @@ void NavMeshTesterTool::handleRenderOverlay(double* proj, double* model, int* vi
 
 void NavMeshTesterTool::drawAgent(const float* pos, float r, float h, float c, const unsigned int col)
 {
-	DebugDrawGL dd;
+	duDebugDraw& dd = m_sample->getDebugDraw();
 	
 	dd.depthMask(false);
 	

@@ -17,18 +17,18 @@
  */
 
 #ifndef DO_POSTGRESQL
+#ifndef DO_SQLITE
 
 #if !defined(QUERYRESULTMYSQL_H)
 #define QUERYRESULTMYSQL_H
 
 #include "Common.h"
 
-#ifdef WIN32
-#include <WinSock2.h>
-#include <mysql/mysql.h>
-#else
-#include <mysql.h>
+#ifdef _WIN32
+  #include <WinSock2.h>
 #endif
+
+#include <mysql.h>
 
 class QueryResultMysql : public QueryResult
 {
@@ -45,5 +45,6 @@ class QueryResultMysql : public QueryResult
 
         MYSQL_RES* mResult;
 };
+#endif
 #endif
 #endif

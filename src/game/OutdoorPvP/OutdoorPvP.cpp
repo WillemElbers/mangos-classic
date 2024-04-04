@@ -17,12 +17,11 @@
  */
 
 #include "OutdoorPvP.h"
-#include "Language.h"
-#include "World.h"
-#include "ObjectMgr.h"
-#include "Object.h"
-#include "GameObject.h"
-#include "Player.h"
+#include "Entities/Object.h"
+#include "Entities/GameObject.h"
+#include "Entities/Player.h"
+#include "Globals/ObjectMgr.h"
+#include "World/World.h"
 
 /**
    Function that adds a player to the players of the affected outdoor pvp zones
@@ -30,6 +29,12 @@
    @param   player to add
    @param   whether zone is main outdoor pvp zone or a affected zone
  */
+void OutdoorPvP::SetGraveYardLinkTeam(uint32 id, uint32 locKey, Team team, uint32 mapId)
+{
+    sWorld.GetMessager().AddMessage([=](World* world) { world->GetGraveyardManager().SetGraveYardLinkTeam(id, locKey, team); });
+    sMapMgr.DoForAllMapsWithMapId(mapId, [=](Map* map) { map->GetMessager().AddMessage([=](Map* map) {map->GetGraveyardManager().SetGraveYardLinkTeam(id, locKey, team); }); });
+}
+
 void OutdoorPvP::HandlePlayerEnterZone(Player* player, bool isMainZone)
 {
     m_zonePlayers[player->GetObjectGuid()] = isMainZone;
@@ -91,7 +96,7 @@ void OutdoorPvP::HandleGameObjectRemove(GameObject* go)
     // save capture point slider value (negative value if locked)
     if (go->GetGOInfo()->type == GAMEOBJECT_TYPE_CAPTURE_POINT)
     {
-        CapturePointSlider value(go->GetCapturePointSliderValue(), go->getLootState() != GO_ACTIVATED);
+        CapturePointSlider value(go->GetCapturePointSliderValue(), go->GetLootState() != GO_ACTIVATED);
         sOutdoorPvPMgr.SetCapturePointSlider(go->GetEntry(), value);
     }
 }
@@ -117,6 +122,9 @@ void OutdoorPvP::HandlePlayerKill(Player* killer, Player* victim)
             if (!groupMember->IsAtGroupRewardDistance(victim))
                 continue;
 
+            if (victim->IsTrivialForTarget(groupMember))
+                continue;
+
             // creature kills must be notified, even if not inside objective / not outdoor pvp active
             // player kills only count if active and inside objective
             if (groupMember->CanUseCapturePoint())
@@ -126,7 +134,7 @@ void OutdoorPvP::HandlePlayerKill(Player* killer, Player* victim)
     else
     {
         // creature kills must be notified, even if not inside objective / not outdoor pvp active
-        if (killer && killer->CanUseCapturePoint())
+        if (killer && killer->CanUseCapturePoint() && !victim->IsTrivialForTarget(killer))
             HandlePlayerKillInsideArea(killer);
     }
 }
@@ -140,14 +148,28 @@ void OutdoorPvP::BuffTeam(Team team, uint32 spellId, bool remove /*= false*/)
         if (player && player->GetTeam() == team)
         {
             if (remove)
-                player->RemoveAurasDueToSpell(spellId);
+            {
+                ObjectGuid guid = player->GetObjectGuid();
+                player->GetMap()->GetMessager().AddMessage([guid, spellId](Map* map) -> void
+                {
+                    if (Player* player = map->GetPlayer(guid))
+                        player->RemoveAurasDueToSpell(spellId);
+                });
+            }
             else
-                player->CastSpell(player, spellId, true);
+            {
+                ObjectGuid guid = player->GetObjectGuid();
+                player->GetMap()->GetMessager().AddMessage([guid, spellId](Map* map) -> void
+                {
+                    if(Player* player = map->GetPlayer(guid))
+                        player->CastSpell(player, spellId, TRIGGERED_OLD_TRIGGERED);
+                });
+            }
         }
     }
 }
 
-uint32 OutdoorPvP::GetBannerArtKit(Team team, uint32 artKitAlliance /*= CAPTURE_ARTKIT_ALLIANCE*/, uint32 artKitHorde /*= CAPTURE_ARTKIT_HORDE*/, uint32 artKitNeutral /*= CAPTURE_ARTKIT_NEUTRAL*/)
+uint32 OutdoorPvP::GetBannerArtKit(Team team, uint32 artKitAlliance /*= CAPTURE_ARTKIT_ALLIANCE*/, uint32 artKitHorde /*= CAPTURE_ARTKIT_HORDE*/, uint32 artKitNeutral /*= CAPTURE_ARTKIT_NEUTRAL*/) const
 {
     switch (team)
     {
@@ -181,7 +203,7 @@ void OutdoorPvP::RespawnGO(const WorldObject* objRef, ObjectGuid goGuid, bool re
 
         if (respawn)
             go->Refresh();
-        else if (go->isSpawned())
-            go->SetLootState(GO_JUST_DEACTIVATED);
+        else if (go->IsSpawned())
+            go->ForcedDespawn();
     }
 }

@@ -21,14 +21,6 @@
 
 #include "Platform/Define.h"
 
-#if COMPILER == COMPILER_MICROSOFT
-#  pragma warning(disable:4996)                             // 'function': was declared deprecated
-#ifndef __SHOW_STUPID_WARNINGS__
-#  pragma warning(disable:4244)                             // 'argument' : conversion from 'type1' to 'type2', possible loss of data
-#  pragma warning(disable:4355)                             // 'this' : used in base member initializer list
-#endif                                                      // __SHOW_STUPID_WARNINGS__
-#endif                                                      // __GNUC__
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +35,7 @@
 #endif
 
 #include <set>
+#include <vector>
 #include <list>
 #include <string>
 #include <map>
@@ -51,9 +44,19 @@
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
+#include <chrono>
 
-#include "Errors.h"
-#include "Threading.h"
+#include "Platform/Filesystem.h"
+
+#include "Util/Errors.h"
+#include "Multithreading/Threading.h"
+#include "Log/Log.h"
+
+// included to use sleep_for()
+#include <thread>
+
+typedef std::chrono::system_clock Clock;
+typedef std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds> TimePoint;
 
 #if COMPILER == COMPILER_MICROSOFT
 
@@ -61,10 +64,8 @@
 
 #  define I32FMT "%08I32X"
 #  define I64FMT "%016I64X"
-#  define snprintf _snprintf
-#  define vsnprintf _vsnprintf
-#  define finite(X) _finite(X)
 
+#  pragma warning ( disable : 4251 )
 #else
 
 #  define stricmp strcasecmp
@@ -86,7 +87,11 @@
 
 #define SI64FMTD "%" PRId64
 
-#define SIZEFMTD "%zd"
+#if COMPILER == COMPILER_MICROSOFT
+#  define SIZEFMTD "%Iu"
+#else
+#  define SIZEFMTD "%zu"
+#endif
 
 inline float finiteAlways(float f) { return std::isfinite(f) ? f : 0.0f; }
 
@@ -98,8 +103,10 @@ inline float finiteAlways(float f) { return std::isfinite(f) ? f : 0.0f; }
 #define PAIR64_LOPART(x)   (uint32)(uint64(x)         & uint64(0x00000000FFFFFFFF))
 
 #define MAKE_PAIR32(l, h)  uint32( uint16(l) | ( uint32(h) << 16 ) )
-#define PAIR32_HIPART(x)   (uint16)((uint32(x) >> 16) & 0x0000FFFF)
-#define PAIR32_LOPART(x)   (uint16)(uint32(x)         & 0x0000FFFF)
+#define PAIR32_HIPART(x)   uint16( ((uint32(x) >> 16) & 0x0000FFFF) )
+#define PAIR32_LOPART(x)   uint16( (uint32(x)         & 0x0000FFFF) )
+
+#define MAX_NETCLIENT_PACKET_SIZE (32767 - 1)               // Client hardcap: int16 with trailing zero space otherwise crash on memory free
 
 enum TimeConstants
 {
@@ -112,7 +119,7 @@ enum TimeConstants
     IN_MILLISECONDS = 1000
 };
 
-enum AccountTypes
+enum AccountTypes : uint32
 {
     SEC_PLAYER         = 0,
     SEC_MODERATOR      = 1,
@@ -134,33 +141,6 @@ enum RealmFlags
     REALM_FLAG_RECOMMENDED  = 0x40,
     REALM_FLAG_FULL         = 0x80
 };
-
-enum LocaleConstant
-{
-    LOCALE_enUS = 0,                                        // also enGB
-    LOCALE_koKR = 1,
-    LOCALE_frFR = 2,
-    LOCALE_deDE = 3,
-    LOCALE_zhCN = 4,
-    LOCALE_zhTW = 5,
-    LOCALE_esES = 6,
-    LOCALE_esMX = 7,
-};
-
-#define MAX_LOCALE 8
-
-LocaleConstant GetLocaleByName(const std::string& name);
-
-extern char const* localeNames[MAX_LOCALE];
-
-struct LocaleNameStr
-{
-    char const* name;
-    LocaleConstant locale;
-};
-
-// used for iterate all names including alternative
-extern LocaleNameStr const fullLocaleNameList[];
 
 // operator new[] based version of strdup() function! Release memory by using operator delete[] !
 inline char* mangos_strdup(const char* source)
@@ -190,5 +170,39 @@ inline char* mangos_strdup(const char* source)
 #ifndef countof
 #define countof(array) (sizeof(array) / sizeof((array)[0]))
 #endif
+
+
+
+enum CMDebugFlags
+{
+    CMDEBUGFLAG_NONE                        = 0x00000000,
+    CMDEBUGFLAG_WP_PATH                     = 0x00000001, // show intermediates point in gm mode (waypoints)
+
+
+
+    CMDEBUGFLAG_DEV_USE1                    = 0x80000000, // can be used for various reason during development
+    CMDEBUGFLAG_DEV_USE2                    = 0x80000000  // can be used for various reason during development
+};
+
+struct CMDebugCommandTableStruct
+{
+    CMDebugCommandTableStruct(std::string const& cmd, std::string const& desc, CMDebugFlags f) :
+        command(cmd), description(desc), flag(f) {}
+
+    std::string command;
+    std::string description;
+    CMDebugFlags flag;
+};
+
+static const std::vector<CMDebugCommandTableStruct> CMDebugCommandTable =
+{
+    { "clearall"                , "reset all flags"                         , CMDEBUGFLAG_NONE                  },
+    { "setall"                  , "set all flags"                           , CMDEBUGFLAG_NONE                  },
+
+    { "wppath"                  , "show waypoint path send to client"       , CMDEBUGFLAG_WP_PATH               },
+
+    { "dev1"                    , "for general use during development"      , CMDEBUGFLAG_DEV_USE1              },
+    { "dev2"                    , "for general use during development"      , CMDEBUGFLAG_DEV_USE2              }
+};
 
 #endif

@@ -20,16 +20,12 @@
 #define OUTDOOR_PVP_H
 
 #include "Common.h"
-#include "ObjectGuid.h"
-#include "SharedDefines.h"
+#include "Entities/EntitiesMgr.h"
+#include "Entities/ObjectGuid.h"
+#include "Globals/SharedDefines.h"
 #include "OutdoorPvPMgr.h"
 
 class WorldPacket;
-class WorldObject;
-class Player;
-class GameObject;
-class Unit;
-class Creature;
 
 enum CapturePointArtKits
 {
@@ -59,10 +55,10 @@ class OutdoorPvP
         virtual void FillInitialWorldStates(WorldPacket& /*data*/, uint32& /*count*/) {}
 
         // Process Capture event
-        virtual bool HandleEvent(uint32 /*eventId*/, GameObject* /*go*/) { return false; }
+        virtual bool HandleEvent(uint32 /*eventId*/, Object* /*source*/, Object* /*target*/) { return false; }
 
         // handle capture objective complete
-        virtual void HandleObjectiveComplete(uint32 /*eventId*/, const std::list<Player*>& /*players*/, Team /*team*/) {}
+        virtual void HandleObjectiveComplete(uint32 /*eventId*/, const PlayerList& /*players*/, Team /*team*/) {}
 
         // Called when a creature is created
         virtual void HandleCreatureCreate(Creature* /*creature*/) {}
@@ -89,6 +85,14 @@ class OutdoorPvP
         // Handle player kill
         void HandlePlayerKill(Player* killer, Player* victim);
 
+        // Handle script condition fulfillment
+        virtual bool IsConditionFulfilled(Player const* /*source*/, uint32 /*conditionId*/, WorldObject const* /*conditionSource*/, uint32 /*conditionSourceType*/) { return false; }
+
+        // Handle script condition state change by an external factor
+        virtual void HandleConditionStateChange(uint32 /*conditionId*/, bool /*state*/) {}
+
+        void SetGraveYardLinkTeam(uint32 id, uint32 locKey, Team team, uint32 mapId);
+
     protected:
 
         // Player related stuff
@@ -108,7 +112,7 @@ class OutdoorPvP
         void BuffTeam(Team team, uint32 spellId, bool remove = false);
 
         // get banner artkit based on controlling team
-        uint32 GetBannerArtKit(Team team, uint32 artKitAlliance = CAPTURE_ARTKIT_ALLIANCE, uint32 artKitHorde = CAPTURE_ARTKIT_HORDE, uint32 artKitNeutral = CAPTURE_ARTKIT_NEUTRAL);
+        uint32 GetBannerArtKit(Team team, uint32 artKitAlliance = CAPTURE_ARTKIT_ALLIANCE, uint32 artKitHorde = CAPTURE_ARTKIT_HORDE, uint32 artKitNeutral = CAPTURE_ARTKIT_NEUTRAL) const;
 
         // set banner visual
         void SetBannerVisual(const WorldObject* objRef, ObjectGuid goGuid, uint32 artKit, uint32 animId);

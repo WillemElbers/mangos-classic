@@ -19,8 +19,8 @@
 #include "OutdoorPvPMgr.h"
 #include "Policies/Singleton.h"
 #include "OutdoorPvP.h"
-#include "World.h"
-#include "Log.h"
+#include "World/World.h"
+#include "Log/Log.h"
 #include "OutdoorPvPEP.h"
 #include "OutdoorPvPSI.h"
 
@@ -34,8 +34,8 @@ OutdoorPvPMgr::OutdoorPvPMgr()
 
 OutdoorPvPMgr::~OutdoorPvPMgr()
 {
-    for (uint8 i = 0; i < MAX_OPVP_ID; ++i)
-        delete m_scripts[i];
+    for (auto& m_script : m_scripts)
+        delete m_script;
 }
 
 #define LOAD_OPVP_ZONE(a)                                           \
@@ -97,8 +97,8 @@ void OutdoorPvPMgr::HandlePlayerEnterZone(Player* player, uint32 zoneId)
 {
     if (OutdoorPvP* script = GetScript(zoneId))
         script->HandlePlayerEnterZone(player, true);
-    else if (OutdoorPvP* script = GetScriptOfAffectedZone(zoneId))
-        script->HandlePlayerEnterZone(player, false);
+    else if (OutdoorPvP* affectedScript = GetScriptOfAffectedZone(zoneId))
+        affectedScript->HandlePlayerEnterZone(player, false);
 }
 
 /**
@@ -112,8 +112,8 @@ void OutdoorPvPMgr::HandlePlayerLeaveZone(Player* player, uint32 zoneId)
     // teleport: called once from Player::CleanupsBeforeDelete, once from Player::UpdateZone
     if (OutdoorPvP* script = GetScript(zoneId))
         script->HandlePlayerLeaveZone(player, true);
-    else if (OutdoorPvP* script = GetScriptOfAffectedZone(zoneId))
-        script->HandlePlayerLeaveZone(player, false);
+    else if (OutdoorPvP* affectedScript = GetScriptOfAffectedZone(zoneId))
+        affectedScript->HandlePlayerLeaveZone(player, false);
 }
 
 void OutdoorPvPMgr::Update(uint32 diff)
@@ -122,9 +122,9 @@ void OutdoorPvPMgr::Update(uint32 diff)
     if (!m_updateTimer.Passed())
         return;
 
-    for (uint8 i = 0; i < MAX_OPVP_ID; ++i)
-        if (m_scripts[i])
-            m_scripts[i]->Update(m_updateTimer.GetCurrent());
+    for (auto& m_script : m_scripts)
+        if (m_script)
+            m_script->Update(m_updateTimer.GetCurrent());
 
     m_updateTimer.Reset();
 }

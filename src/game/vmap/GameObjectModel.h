@@ -22,11 +22,7 @@
 #include <G3D/Matrix3.h>
 #include <G3D/Vector3.h>
 #include <G3D/AABox.h>
-#include <G3D/Ray.h>
-#include "../DBCStructure.h"
-#include "../GameObject.h"
-
-#include "Platform/Define.h"
+#include "Entities/GameObject.h"
 
 namespace VMAP
 {
@@ -45,8 +41,8 @@ class GameObjectModel
         float iScale;
         VMAP::WorldModel* iModel;
 
-        GameObjectModel() : collision_enabled(false), iModel(nullptr) {}
-        bool initialize(const GameObject* const pGo, const GameObjectDisplayInfoEntry* info);
+        GameObjectModel() : collision_enabled(false), iInvScale(0), iScale(0), iModel(nullptr) {}
+        bool initialize(const GameObject* const pGo, const GameObjectDisplayInfoEntry* pDisplayInfo);
 
     public:
         std::string name;
@@ -61,8 +57,10 @@ class GameObjectModel
         void disable() { collision_enabled = false;}
         void enable(bool enabled) { collision_enabled = enabled;}
 
-        bool intersectRay(const G3D::Ray& Ray, float& MaxDist, bool StopAtFirstHit) const;
+        bool intersectRay(const G3D::Ray& ray, float& MaxDist, bool StopAtFirstHit, bool ignoreM2Model) const;
 
         static GameObjectModel* construct(const GameObject* const pGo);
+
+        bool Relocate(GameObject const& go);
 };
 #endif

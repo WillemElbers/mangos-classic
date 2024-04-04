@@ -16,7 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -102,7 +101,7 @@ static int getCornerHeight(int x, int y, int i, int dir,
 }
 
 static void walkContour(int x, int y, int i,
-						rcCompactHeightfield& chf,
+						const rcCompactHeightfield& chf,
 						unsigned char* flags, rcIntArray& points)
 {
 	// Choose the first non-connected edge
@@ -464,7 +463,7 @@ static int calcAreaOfPolygon2D(const int* verts, const int nverts)
 }
 
 // TODO: these are the same as in RecastMesh.cpp, consider using the same.
-
+// Last time I checked the if version got compiled using cmov, which was a lot faster than module (with idiv).
 inline int prev(int i, int n) { return i-1 >= 0 ? i-1 : n-1; }
 inline int next(int i, int n) { return i+1 < n ? i+1 : 0; }
 
@@ -542,7 +541,7 @@ static bool vequal(const int* a, const int* b)
 	return a[0] == b[0] && a[2] == b[2];
 }
 
-static bool intersectSegCountour(const int* d0, const int* d1, int i, int n, const int* verts)
+static bool intersectSegContour(const int* d0, const int* d1, int i, int n, const int* verts)
 {
 	// For each edge (k,k+1) of P
 	for (int k = 0; k < n; k++)
@@ -731,7 +730,7 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 	for (int i = 0; i < region.nholes; i++)
 		maxVerts += region.holes[i].contour->nverts;
 	
-	rcScopedDelete<rcPotentialDiagonal> diags = (rcPotentialDiagonal*)rcAlloc(sizeof(rcPotentialDiagonal)*maxVerts, RC_ALLOC_TEMP);
+	rcScopedDelete<rcPotentialDiagonal> diags((rcPotentialDiagonal*)rcAlloc(sizeof(rcPotentialDiagonal)*maxVerts, RC_ALLOC_TEMP));
 	if (!diags)
 	{
 		ctx->log(RC_LOG_WARNING, "mergeRegionHoles: Failed to allocated diags %d.", maxVerts);
@@ -778,9 +777,9 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 			for (int j = 0; j < ndiags; j++)
 			{
 				const int* pt = &outline->verts[diags[j].vert*4];
-				bool intersect = intersectSegCountour(pt, corner, diags[i].vert, outline->nverts, outline->verts);
+				bool intersect = intersectSegContour(pt, corner, diags[i].vert, outline->nverts, outline->verts);
 				for (int k = i; k < region.nholes && !intersect; k++)
-					intersect |= intersectSegCountour(pt, corner, -1, region.holes[k].contour->nverts, region.holes[k].contour->verts);
+					intersect |= intersectSegContour(pt, corner, -1, region.holes[k].contour->nverts, region.holes[k].contour->verts);
 				if (!intersect)
 				{
 					index = diags[j].vert;
@@ -821,7 +820,7 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 /// See the #rcConfig documentation for more information on the configuration parameters.
 ///
 /// @see rcAllocContourSet, rcCompactHeightfield, rcContourSet, rcConfig
-bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
+bool rcBuildContours(rcContext* ctx, const rcCompactHeightfield& chf,
 					 const float maxError, const int maxEdgeLen,
 					 rcContourSet& cset, const int buildFlags)
 {
@@ -831,7 +830,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	const int h = chf.height;
 	const int borderSize = chf.borderSize;
 	
-	ctx->startTimer(RC_TIMER_BUILD_CONTOURS);
+	rcScopedTimer timer(ctx, RC_TIMER_BUILD_CONTOURS);
 	
 	rcVcopy(cset.bmin, chf.bmin);
 	rcVcopy(cset.bmax, chf.bmax);
@@ -849,6 +848,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	cset.width = chf.width - chf.borderSize*2;
 	cset.height = chf.height - chf.borderSize*2;
 	cset.borderSize = chf.borderSize;
+	cset.maxError = maxError;
 	
 	int maxContours = rcMax((int)chf.maxRegions, 8);
 	cset.conts = (rcContour*)rcAlloc(sizeof(rcContour)*maxContours, RC_ALLOC_PERM);
@@ -856,7 +856,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 		return false;
 	cset.nconts = 0;
 	
-	rcScopedDelete<unsigned char> flags = (unsigned char*)rcAlloc(sizeof(unsigned char)*chf.spanCount, RC_ALLOC_TEMP);
+	rcScopedDelete<unsigned char> flags((unsigned char*)rcAlloc(sizeof(unsigned char)*chf.spanCount, RC_ALLOC_TEMP));
 	if (!flags)
 	{
 		ctx->log(RC_LOG_ERROR, "rcBuildContours: Out of memory 'flags' (%d).", chf.spanCount);
@@ -920,8 +920,8 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					continue;
 				const unsigned char area = chf.areas[i];
 				
-				verts.resize(0);
-				simplified.resize(0);
+				verts.clear();
+				simplified.clear();
 				
 				ctx->startTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
 				walkContour(x, y, i, chf, flags, verts);
@@ -1008,7 +1008,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	if (cset.nconts > 0)
 	{
 		// Calculate winding of all polygons.
-		rcScopedDelete<char> winding = (char*)rcAlloc(sizeof(char)*cset.nconts, RC_ALLOC_TEMP);
+		rcScopedDelete<signed char> winding((signed char*)rcAlloc(sizeof(signed char)*cset.nconts, RC_ALLOC_TEMP));
 		if (!winding)
 		{
 			ctx->log(RC_LOG_ERROR, "rcBuildContours: Out of memory 'hole' (%d).", cset.nconts);
@@ -1029,7 +1029,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 			// Collect outline contour and holes contours per region.
 			// We assume that there is one outline and multiple holes.
 			const int nregions = chf.maxRegions+1;
-			rcScopedDelete<rcContourRegion> regions = (rcContourRegion*)rcAlloc(sizeof(rcContourRegion)*nregions, RC_ALLOC_TEMP);
+			rcScopedDelete<rcContourRegion> regions((rcContourRegion*)rcAlloc(sizeof(rcContourRegion)*nregions, RC_ALLOC_TEMP));
 			if (!regions)
 			{
 				ctx->log(RC_LOG_ERROR, "rcBuildContours: Out of memory 'regions' (%d).", nregions);
@@ -1037,7 +1037,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 			}
 			memset(regions, 0, sizeof(rcContourRegion)*nregions);
 			
-			rcScopedDelete<rcContourHole> holes = (rcContourHole*)rcAlloc(sizeof(rcContourHole)*cset.nconts, RC_ALLOC_TEMP);
+			rcScopedDelete<rcContourHole> holes((rcContourHole*)rcAlloc(sizeof(rcContourHole)*cset.nconts, RC_ALLOC_TEMP));
 			if (!holes)
 			{
 				ctx->log(RC_LOG_ERROR, "rcBuildContours: Out of memory 'holes' (%d).", cset.nconts);
@@ -1099,8 +1099,6 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 		}
 		
 	}
-	
-	ctx->stopTimer(RC_TIMER_BUILD_CONTOURS);
 	
 	return true;
 }

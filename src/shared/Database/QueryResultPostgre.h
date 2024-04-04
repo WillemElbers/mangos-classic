@@ -19,7 +19,7 @@
 #if !defined(QUERYRESULTPOSTGRE_H)
 #define QUERYRESULTPOSTGRE_H
 
-#ifdef WIN32
+#ifdef _WIN32
 #define FD_SETSIZE 1024
 #include <winsock2.h>
 #include <postgre/libpq-fe.h>
@@ -68,7 +68,7 @@
 #define BITOID 1560
 #define VARBITOID 1562
 #define NUMERICOID 1700
-#include <libpq-fe.h>
+#include <postgresql/libpq-fe.h>
 #endif
 
 class QueryResultPostgre : public QueryResult
@@ -82,7 +82,7 @@ class QueryResultPostgre : public QueryResult
 
     private:
         enum Field::DataTypes ConvertNativeType(Oid pOid) const;
-        void EndQuery() override;
+        void EndQuery();
 
         PGresult* mResult;
         uint32 mTableIndex;

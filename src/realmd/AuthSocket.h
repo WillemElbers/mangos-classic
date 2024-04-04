@@ -25,25 +25,36 @@
 
 #include "Common.h"
 #include "Auth/BigNumber.h"
-#include "Auth/Sha1.h"
-#include "ByteBuffer.h"
+#include "Auth/CryptoHash.h"
+#include "Auth/SRP6.h"
+#include "Util/ByteBuffer.h"
 
-#include "Network/Socket.hpp"
+#include "Network/AsyncSocket.hpp"
 
 #include <boost/asio.hpp>
 
 #include <functional>
 
-class AuthSocket : public MaNGOS::Socket
+#define HMAC_RES_SIZE 20
+
+struct sAuthLogonProof_C;
+
+class AuthSocket : public MaNGOS::AsyncSocket<AuthSocket>
 {
     public:
         const static int s_BYTE_SIZE = 32;
 
-        AuthSocket(boost::asio::io_service &service, std::function<void (Socket *)> closeHandler);
+        AuthSocket(boost::asio::io_service& service);
+
+        bool OnOpen() override;
 
         void SendProof(Sha1Hash sha);
-        void LoadRealmlist(ByteBuffer& pkt, uint32 acctid);
+        void LoadRealmlist(ByteBuffer& pkt, uint32 acctid, uint8 accountSecurityLevel = 0);
+        int32 generateToken(char const* b32key);
 
+        uint8 getEligibleRealmCount(uint8 accountSecurityLevel);
+
+        bool VerifyVersion(uint8 const* a, int32 aLength, uint8 const* versionProof, bool isReconnect);
         bool _HandleLogonChallenge();
         bool _HandleLogonProof();
         bool _HandleReconnectChallenge();
@@ -55,24 +66,35 @@ class AuthSocket : public MaNGOS::Socket
         bool _HandleXferCancel();
         bool _HandleXferAccept();
 
-        void _SetVSFields(const std::string& rI);
-
     private:
-        BigNumber N, s, g, v;
-        BigNumber b, B;
-        BigNumber K;
+        void verifyVersionAndFinalizeAuthentication(std::shared_ptr<sAuthLogonProof_C> lp);
+
+        enum eStatus
+        {
+            STATUS_CHALLENGE,
+            STATUS_LOGON_PROOF,
+            STATUS_RECON_PROOF,
+            STATUS_PATCH,      // unused in CMaNGOS
+            STATUS_AUTHED,
+            STATUS_CLOSED
+        };
+
+        SRP6 srp;
         BigNumber _reconnectProof;
 
-        bool _authed;
+        eStatus _status;
 
         std::string _login;
         std::string _safelogin;
-
-        // Since GetLocaleByName() is _NOT_ bijective, we have to store the locale as a string. Otherwise we can't differ
-        // between enUS and enGB, which is important for the patch system
-        std::string _localizationName;
+        std::string _token;
+        std::string m_os;
+        std::string m_platform;
+        std::string m_locale;
+        std::string _safelocale;
         uint16 _build;
         AccountTypes _accountSecurityLevel;
+
+        boost::asio::deadline_timer m_timeoutTimer;
 
         virtual bool ProcessIncomingData() override;
 };

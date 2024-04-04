@@ -16,7 +16,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-set(EXECUTABLE_NAME realmd)
+set(EXECUTABLE_NAME ${CMANGOS_BINARY_REALMD_NAME})
 
 set(EXECUTABLE_SRCS
     AuthCodes.h
@@ -30,46 +30,47 @@ set(EXECUTABLE_SRCS
 if(WIN32)
   # add resource file to windows build
   set(EXECUTABLE_SRCS ${EXECUTABLE_SRCS} realmd.rc)
+  if(MSVC)
+    set(EXECUTABLE_SRCS
+      ${EXECUTABLE_SRCS}
+      ${CMAKE_SOURCE_DIR}/src/shared/Platform/WheatyExceptionReport.cpp
+      ${CMAKE_SOURCE_DIR}/src/shared/Platform/WheatyExceptionReport.h
+     )
+  endif()
 endif()
-
-include_directories(
-  ${CMAKE_SOURCE_DIR}/src/shared
-  ${CMAKE_SOURCE_DIR}/src/framework
-  ${CMAKE_BINARY_DIR}
-  ${CMAKE_BINARY_DIR}/src/shared
-  ${MYSQL_INCLUDE_DIR}
-)
 
 add_executable(${EXECUTABLE_NAME}
   ${EXECUTABLE_SRCS}
 )
 
-add_dependencies(${EXECUTABLE_NAME} revision.h)
-
 target_link_libraries(${EXECUTABLE_NAME}
   shared
-  framework
-  ${Boost_LIBRARIES}
 )
 
 if(WIN32)
-  target_link_libraries(${EXECUTABLE_NAME}
-    optimized ${MYSQL_LIBRARY}
-    optimized ${OPENSSL_LIBRARIES}
-    debug ${MYSQL_DEBUG_LIBRARY}
-    debug ${OPENSSL_DEBUG_LIBRARIES}
-  )
-  if(PLATFORM MATCHES X86)
-    target_link_libraries(${EXECUTABLE_NAME})
+  if(MSVC)
+    target_link_libraries(${EXECUTABLE_NAME}
+      dbghelp
+    )
   endif()
-endif()
+  if(MINGW)
+    target_link_libraries(${EXECUTABLE_NAME}
+      wsock32
+      ws2_32
+    )
+  endif()
 
-if(UNIX)
-  target_link_libraries(${EXECUTABLE_NAME}
-    ${MYSQL_LIBRARY}
-    ${OPENSSL_LIBRARIES}
-    ${OPENSSL_EXTRA_LIBRARIES}
-  )
+  # Define OutDir to source/bin/(platform)_(configuaration) folder.
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${DEV_BIN_DIR}")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES PROJECT_LABEL "AuthServer")
+
+  # Add conf file to dev folder
+  add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different \"${CMAKE_CURRENT_SOURCE_DIR}/realmd.conf.dist.in\" \"$<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/realmd.conf.dist\")
 endif()
 
 set(EXECUTABLE_LINK_FLAGS "")
@@ -86,9 +87,12 @@ set_target_properties(${EXECUTABLE_NAME} PROPERTIES LINK_FLAGS
   "${EXECUTABLE_LINK_FLAGS}"
 )
 
+if (NOT WIN32)
+  install(FILES run-realmd DESTINATION ${BIN_DIR})
+endif()
 install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${BIN_DIR})
 install(FILES realmd.conf.dist.in DESTINATION ${CONF_DIR} RENAME realmd.conf.dist)
 
-if(WIN32 AND MSVC)
+if(MSVC)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/\${BUILD_TYPE}/${EXECUTABLE_NAME}.pdb DESTINATION ${BIN_DIR} CONFIGURATIONS Debug)
 endif()

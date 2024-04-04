@@ -58,16 +58,16 @@ namespace VMAP
 
 
             static bool readFromFile(FILE* rf, ModelSpawn& spawn);
-            static bool writeToFile(FILE* rw, const ModelSpawn& spawn);
+            static bool writeToFile(FILE* wf, const ModelSpawn& spawn);
     };
 
     class ModelInstance: public ModelSpawn
     {
         public:
-            ModelInstance(): iModel(0) {}
+            ModelInstance(): iInvScale(0), iModel(nullptr) {}
             ModelInstance(const ModelSpawn& spawn, WorldModel* model);
-            void setUnloaded() { iModel = 0; }
-            bool intersectRay(const G3D::Ray& pRay, float& pMaxDist, bool pStopAtFirstHit) const;
+            void setUnloaded() { iModel = nullptr; }
+            bool intersectRay(const G3D::Ray& pRay, float& pMaxDist, bool pStopAtFirstHit, bool ignoreM2Model = false) const;
             void intersectPoint(const G3D::Vector3& p, AreaInfo& info) const;
             bool GetLocationInfo(const G3D::Vector3& p, LocationInfo& info) const;
             bool GetLiquidLevel(const G3D::Vector3& p, LocationInfo& info, float& liqHeight) const;

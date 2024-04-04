@@ -8,134 +8,35 @@
 # WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
 # implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.5)
 
-project( MoveMapGen )
+set(EXECUTABLE_NAME "MoveMapGen")
+project (${EXECUTABLE_NAME})
 
-include(../../cmake/common.cmake)
-include(CheckPlatform)
+# disable warnings for dependencies
+DisableWarnings()
 
-ADD_DEFINITIONS(-DMMAP_GENERATOR -DNO_CORE_FUNCS -DDEBUG)
+ADD_DEFINITIONS(-DMMAP_GENERATOR -DNO_CORE_FUNCS)
 ADD_DEFINITIONS(-DDT_POLYREF64)
+ADD_DEFINITIONS(-DNO_vsnprintf)
 
-# zlib
-ADD_DEFINITIONS( -DNO_vsnprintf )
-
-ADD_DEFINITIONS("-ggdb")
-ADD_DEFINITIONS("-O3")
+if(UNIX)
+  ADD_DEFINITIONS("-ggdb")
+endif()
 
 include_directories(
     ../../src
-    ../../src/shared
     ../../src/game
     ../../src/game/vmap
-    ../../dep/include/g3dlite
-    ../../src/framework
-    ../../dep/recastnavigation/Detour/Include
-    ../../dep/recastnavigation/Recast/Include
-    ../../dep/src/zlib
 )
 
-add_library(zlib
-    ../../dep/src/zlib/adler32.c
-    ../../dep/src/zlib/compress.c
-    ../../dep/src/zlib/crc32.c
-    ../../dep/src/zlib/deflate.c
-    ../../dep/src/zlib/example.c
-    ../../dep/src/zlib/gzio.c
-    ../../dep/src/zlib/infback.c
-    ../../dep/src/zlib/inffast.c
-    ../../dep/src/zlib/inflate.c
-    ../../dep/src/zlib/inftrees.c
-    ../../dep/src/zlib/trees.c
-    ../../dep/src/zlib/uncompr.c
-    ../../dep/src/zlib/zutil.c
-)
+IF(APPLE)
+   FIND_LIBRARY(CORE_SERVICES CoreServices )
+   SET(EXTRA_LIBS ${CORE_SERVICES})
+ENDIF (APPLE)
 
-add_library(g3dlite
-    ../../dep/src/g3dlite/AABox.cpp
-    ../../dep/src/g3dlite/Any.cpp
-    ../../dep/src/g3dlite/AnyVal.cpp
-    ../../dep/src/g3dlite/AreaMemoryManager.cpp
-    ../../dep/src/g3dlite/BinaryFormat.cpp
-    ../../dep/src/g3dlite/BinaryInput.cpp
-    ../../dep/src/g3dlite/BinaryOutput.cpp
-    ../../dep/src/g3dlite/Box.cpp
-    ../../dep/src/g3dlite/Box2D.cpp
-    ../../dep/src/g3dlite/BumpMapPreprocess.cpp
-    ../../dep/src/g3dlite/Capsule.cpp
-    ../../dep/src/g3dlite/CollisionDetection.cpp
-    ../../dep/src/g3dlite/Color1.cpp
-    ../../dep/src/g3dlite/Color1uint8.cpp
-    ../../dep/src/g3dlite/Color3.cpp
-    ../../dep/src/g3dlite/Color3uint8.cpp
-    ../../dep/src/g3dlite/Color4.cpp
-    ../../dep/src/g3dlite/Color4uint8.cpp
-    ../../dep/src/g3dlite/Cone.cpp
-    ../../dep/src/g3dlite/constants.cpp
-    ../../dep/src/g3dlite/ConvexPolyhedron.cpp
-    ../../dep/src/g3dlite/CoordinateFrame.cpp
-    ../../dep/src/g3dlite/Crypto.cpp
-    ../../dep/src/g3dlite/Crypto_md5.cpp
-    ../../dep/src/g3dlite/Cylinder.cpp
-    ../../dep/src/g3dlite/debugAssert.cpp
-    ../../dep/src/g3dlite/fileutils.cpp
-    ../../dep/src/g3dlite/filter.cpp
-    ../../dep/src/g3dlite/format.cpp
-    ../../dep/src/g3dlite/g3dfnmatch.cpp
-    ../../dep/src/g3dlite/g3dmath.cpp
-    ../../dep/src/g3dlite/GCamera.cpp
-    ../../dep/src/g3dlite/GLight.cpp
-    ../../dep/src/g3dlite/GThread.cpp
-    ../../dep/src/g3dlite/GUniqueID.cpp
-    ../../dep/src/g3dlite/Intersect.cpp
-    ../../dep/src/g3dlite/license.cpp
-    ../../dep/src/g3dlite/Line.cpp
-    ../../dep/src/g3dlite/LineSegment.cpp
-    ../../dep/src/g3dlite/Log.cpp
-    ../../dep/src/g3dlite/Matrix.cpp
-    ../../dep/src/g3dlite/Matrix3.cpp
-    ../../dep/src/g3dlite/Matrix4.cpp
-    ../../dep/src/g3dlite/MemoryManager.cpp
-    ../../dep/src/g3dlite/MeshAlg.cpp
-    ../../dep/src/g3dlite/MeshAlgAdjacency.cpp
-    ../../dep/src/g3dlite/MeshAlgWeld.cpp
-    ../../dep/src/g3dlite/MeshBuilder.cpp
-    ../../dep/src/g3dlite/NetAddress.cpp
-    ../../dep/src/g3dlite/NetworkDevice.cpp
-    ../../dep/src/g3dlite/PhysicsFrame.cpp
-    ../../dep/src/g3dlite/Plane.cpp
-    ../../dep/src/g3dlite/PrecomputedRandom.cpp
-    ../../dep/src/g3dlite/prompt.cpp
-    ../../dep/src/g3dlite/Quat.cpp
-    ../../dep/src/g3dlite/Random.cpp
-    ../../dep/src/g3dlite/Ray.cpp
-    ../../dep/src/g3dlite/Rect2D.cpp
-    ../../dep/src/g3dlite/ReferenceCount.cpp
-    ../../dep/src/g3dlite/RegistryUtil.cpp
-    ../../dep/src/g3dlite/Sphere.cpp
-    ../../dep/src/g3dlite/SplineBase.cpp
-    ../../dep/src/g3dlite/stringutils.cpp
-    ../../dep/src/g3dlite/System.cpp
-    ../../dep/src/g3dlite/TextInput.cpp
-    ../../dep/src/g3dlite/TextOutput.cpp
-    ../../dep/src/g3dlite/ThreadSet.cpp
-    ../../dep/src/g3dlite/Triangle.cpp
-    ../../dep/src/g3dlite/uint128.cpp
-    ../../dep/src/g3dlite/UprightFrame.cpp
-    ../../dep/src/g3dlite/Vector2.cpp
-    ../../dep/src/g3dlite/Vector2int16.cpp
-    ../../dep/src/g3dlite/Vector3.cpp
-    ../../dep/src/g3dlite/Vector3int16.cpp
-    ../../dep/src/g3dlite/Vector3int32.cpp
-    ../../dep/src/g3dlite/Vector4.cpp
-    ../../dep/src/g3dlite/Vector4int8.cpp
-    ../../dep/src/g3dlite/Welder.cpp
-    ../../dep/src/g3dlite/WinMain.cpp
-    ../../dep/src/g3dlite/FileSystem.cpp
-)
-
-add_library(vmap
+# TODO: Do we still need that vmaplib?
+add_library(vmaplib STATIC
     ../../src/game/vmap/BIH.cpp
     ../../src/game/vmap/VMapManager2.cpp
     ../../src/game/vmap/MapTree.cpp
@@ -144,37 +45,80 @@ add_library(vmap
     ../../src/game/vmap/ModelInstance.cpp
 )
 
-target_link_libraries(vmap g3dlite zlib)
-
-add_library(Detour
-    ../../dep/recastnavigation/Detour/Source/DetourAlloc.cpp
-    ../../dep/recastnavigation/Detour/Source/DetourCommon.cpp
-    ../../dep/recastnavigation/Detour/Source/DetourNavMesh.cpp
-    ../../dep/recastnavigation/Detour/Source/DetourNavMeshBuilder.cpp
-    ../../dep/recastnavigation/Detour/Source/DetourNavMeshQuery.cpp
-    ../../dep/recastnavigation/Detour/Source/DetourNode.cpp
+target_link_libraries(vmaplib
+  PUBLIC shared
+  PUBLIC g3dlite
+  PUBLIC Detour
+  PUBLIC Recast
+  PUBLIC ${EXTRA_LIBS}
 )
 
-add_library(Recast
-    ../../dep/recastnavigation/Recast/Source/Recast.cpp
-    ../../dep/recastnavigation/Recast/Source/RecastAlloc.cpp
-    ../../dep/recastnavigation/Recast/Source/RecastArea.cpp
-    ../../dep/recastnavigation/Recast/Source/RecastContour.cpp
-    ../../dep/recastnavigation/Recast/Source/RecastFilter.cpp
-    ../../dep/recastnavigation/Recast/Source/RecastMesh.cpp
-    ../../dep/recastnavigation/Recast/Source/RecastMeshDetail.cpp
-    ../../dep/recastnavigation/Recast/Source/RecastRasterization.cpp
-    ../../dep/recastnavigation/Recast/Source/RecastRegion.cpp
+target_include_directories(vmaplib
+    PUBLIC "${CMAKE_SOURCE_DIR}/src/framework"
+    PUBLIC ${ROOT_DIR}/dep/json
 )
 
-set(SOURCES
+add_library(mmaplib STATIC
     ./src/IntermediateValues.cpp
-    ./src/generator.cpp
     ./src/MapBuilder.cpp
     ./src/TerrainBuilder.cpp
     ./src/VMapExtensions.cpp
 )
 
-add_executable( MoveMapGen ${SOURCES} )
+target_include_directories(mmaplib
+    PUBLIC "${CMAKE_SOURCE_DIR}/src/framework"
+)
 
-target_link_libraries( MoveMapGen g3dlite vmap Detour Recast zlib )
+target_link_libraries(mmaplib
+  PUBLIC vmaplib
+)
+
+if (MSVC)
+  set_target_properties(vmaplib PROPERTIES FOLDER "Dependencies")
+  set_target_properties(mmaplib PROPERTIES FOLDER "Dependencies")
+endif()
+
+if (BUILD_EXTRACTORS)
+  add_executable(${EXECUTABLE_NAME} ./src/generator.cpp ./src/IntermediateValues.h ./src/IntermediateValues.cpp ./src/MapBuilder.h ./src/MapBuilder.cpp ./src/MMapCommon.h ./src/TerrainBuilder.cpp ./src/TerrainBuilder.h ./src/VMapExtensions.cpp )
+
+  target_link_libraries(${EXECUTABLE_NAME}
+    vmaplib
+    Detour
+    Recast
+    mmaplib
+  )
+
+  set(EXECUTABLE_LINK_FLAGS "")
+  if(UNIX)
+    if (APPLE)
+      set(EXECUTABLE_LINK_FLAGS "-pthread -framework Carbon")
+    else()
+      set(EXECUTABLE_LINK_FLAGS "-pthread -rdynamic")
+    endif()
+  endif()
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES LINK_FLAGS
+    "${EXECUTABLE_LINK_FLAGS}"
+  )
+
+  if(MSVC)
+    # Define OutDir to source/bin/(platform)_(configuaration) folder.
+    set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${DEV_BIN_DIR}/Extractors")
+    set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${DEV_BIN_DIR}/Extractors")
+    set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${DEV_BIN_DIR}/Extractors")
+    set_target_properties(${EXECUTABLE_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$(OutDir)")
+    set_target_properties(${EXECUTABLE_NAME} PROPERTIES PROJECT_LABEL "MoveMapGen")
+    set_target_properties(${EXECUTABLE_NAME} PROPERTIES FOLDER "Extractors")
+
+    # Add script file to dev folder
+    set(FILES_LIST_TO_COPY
+          \"${CMAKE_SOURCE_DIR}/contrib/extractor_scripts/config.json\"
+          \"${CMAKE_SOURCE_DIR}/contrib/extractor_scripts/MoveMapGen.sh\"
+          \"${CMAKE_SOURCE_DIR}/contrib/extractor_scripts/offmesh.txt\")
+    add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${FILES_LIST_TO_COPY} \"$<TARGET_FILE_DIR:${EXECUTABLE_NAME}>\")
+  endif()
+
+  install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${BIN_DIR}/tools)
+  install(PROGRAMS "${CMAKE_SOURCE_DIR}/contrib/extractor_scripts/MoveMapGen.sh" DESTINATION ${BIN_DIR}/tools)
+  install(FILES "${CMAKE_SOURCE_DIR}/contrib/extractor_scripts/offmesh.txt" DESTINATION ${BIN_DIR}/tools)
+endif()

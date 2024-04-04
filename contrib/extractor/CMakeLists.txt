@@ -14,22 +14,39 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-cmake_minimum_required (VERSION 2.6)
-project (MANGOS_MAP_EXTRACTOR)
+cmake_minimum_required (VERSION 3.5)
+set(EXECUTABLE_NAME "ad")
 
-include(../../cmake/common.cmake)
-include(CheckPlatform)
+list(APPEND AD_SOURCE
+     loadlib/loadlib.cpp
+     loadlib/adt.cpp
+     loadlib/wdt.cpp
+     loadlib/loadlib.h
+     loadlib/adt.h
+     loadlib/wdt.h
+     dbcfile.cpp
+     dbcfile.h
+     mpq_libmpq.cpp
+     mpq_libmpq.h
+     System.cpp
+)
 
-add_subdirectory (libmpq)
-add_subdirectory (loadlib)
+include_directories(
+     ../../src/game
+)
 
-include_directories (${MANGOS_MAP_EXTRACTOR_SOURCE_DIR}/libmpq)
-include_directories (${MANGOS_MAP_EXTRACTOR_SOURCE_DIR}/loadlib)
+add_executable(${EXECUTABLE_NAME} ${AD_SOURCE})
 
-link_directories (${MANGOS_MAP_EXTRACTOR_SOURCE_DIR}/libmpq)
-link_directories (${MANGOS_MAP_EXTRACTOR_SOURCE_DIR}/loadlib)
+target_link_libraries(${EXECUTABLE_NAME} mpqlib)
 
-add_executable (ad dbcfile.cpp mpq_libmpq.cpp System.cpp)
+if(MSVC)
+  # Define OutDir to source/bin/(platform)_(configuaration) folder.
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${DEV_BIN_DIR}/Extractors")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${DEV_BIN_DIR}/Extractors")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${DEV_BIN_DIR}/Extractors")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$(OutDir)")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES PROJECT_LABEL "MapDbcExtractor")
+  set_target_properties(${EXECUTABLE_NAME} PROPERTIES FOLDER "Extractors")
+endif()
 
-target_link_libraries (ad libmpq)
-target_link_libraries (ad loadlib)
+install(TARGETS ${EXECUTABLE_NAME} DESTINATION ${BIN_DIR}/tools)

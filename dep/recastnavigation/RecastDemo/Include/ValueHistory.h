@@ -8,7 +8,6 @@ class ValueHistory
 	int m_hsamples;
 public:
 	ValueHistory();
-	~ValueHistory();
 
 	inline void addSample(const float val)
 	{
@@ -49,3 +48,4 @@ void drawGraph(const GraphParams* p, const ValueHistory* graph,
 
 
 #endif // VALUEHISTORY_H
+

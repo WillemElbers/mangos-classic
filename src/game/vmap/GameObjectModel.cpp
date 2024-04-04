@@ -21,11 +21,11 @@
 #include "VMapDefinitions.h"
 #include "WorldModel.h"
 
-#include "../GameObject.h"
-#include "../World.h"
+#include "Entities//GameObject.h"
+#include "World/World.h"
 #include "GameObjectModel.h"
-#include "../DBCStores.h"
-#include "../Creature.h"
+#include "Server/DBCStores.h"
+#include "ModelInstance.h"
 
 struct GameobjectModelData
 {
@@ -114,7 +114,7 @@ bool GameObjectModel::initialize(const GameObject* const pGo, const GameObjectDi
     for (int i = 0; i < 8; ++i)
     {
         Vector3 pos(iBound.corner(i));
-        if (Creature* c = const_cast<GameObject*>(pGo)->SummonCreature(24440, pos.x, pos.y, pos.z, 0, TEMPSUMMON_MANUAL_DESPAWN, 0))
+        if (Creature* c = const_cast<GameObject*>(pGo)->SummonCreature(24440, pos.x, pos.y, pos.z, 0, TEMPSPAWN_MANUAL_DESPAWN, 0))
         {
             c->setFaction(35);
             c->SetObjectScale(0.1f);
@@ -141,7 +141,7 @@ GameObjectModel* GameObjectModel::construct(const GameObject* const pGo)
     return mdl;
 }
 
-bool GameObjectModel::intersectRay(const G3D::Ray& ray, float& MaxDist, bool StopAtFirstHit) const
+bool GameObjectModel::intersectRay(const G3D::Ray& ray, float& MaxDist, bool StopAtFirstHit, bool ignoreM2Model) const
 {
     if (!collision_enabled)
         return false;
@@ -154,11 +154,52 @@ bool GameObjectModel::intersectRay(const G3D::Ray& ray, float& MaxDist, bool Sto
     Vector3 p = iInvRot * (ray.origin() - iPos) * iInvScale;
     Ray modRay(p, iInvRot * ray.direction());
     float distance = MaxDist * iInvScale;
-    bool hit = iModel->IntersectRay(modRay, distance, StopAtFirstHit);
+    bool hit = iModel->IntersectRay(modRay, distance, StopAtFirstHit, ignoreM2Model);
     if (hit)
     {
         distance *= iScale;
         MaxDist = distance;
     }
     return hit;
+}
+
+bool GameObjectModel::Relocate(GameObject const& go)
+{
+    if (!iModel)
+        return false;
+
+    ModelList::const_iterator it = model_list.find(go.GetDisplayId());
+    if (it == model_list.end())
+        return false;
+
+    G3D::AABox mdl_box(it->second.bound);
+    // ignore models with no bounds
+    if (mdl_box == G3D::AABox::zero())
+    {
+        DEBUG_LOG("GameObject model %s has zero bounds, loading skipped", it->second.name.c_str());
+        return false;
+    }
+
+    iPos = Vector3(go.GetPositionX(), go.GetPositionY(), go.GetPositionZ());
+
+    G3D::Matrix3 iRotation = G3D::Matrix3::fromEulerAnglesZYX(go.GetOrientation(), 0, 0);
+    iInvRot = iRotation.inverse();
+    // transform bounding box:
+    mdl_box = AABox(mdl_box.low() * iScale, mdl_box.high() * iScale);
+    AABox rotated_bounds;
+    for (int i = 0; i < 8; ++i)
+        rotated_bounds.merge(iRotation * mdl_box.corner(i));
+
+    iBound = rotated_bounds + iPos;
+#ifdef SPAWN_CORNERS
+    // test:
+    for (int i = 0; i < 8; ++i)
+    {
+        Vector3 pos(iBound.corner(i));
+        Creature* c = ((GameObject*)&go)->SummonCreature(1, pos.x, pos.y, pos.z, 0, TEMPSUMMON_TIMED_DESPAWN, 4000);
+        c->SetFly(true);
+        c->SendHeartBeat();
+    }
+#endif
+    return true;
 }

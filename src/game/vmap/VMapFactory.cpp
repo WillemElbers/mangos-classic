@@ -16,7 +16,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <sys/types.h>
 #include "VMapFactory.h"
 #include "VMapManager2.h"
 
@@ -52,8 +51,8 @@ namespace VMAP
         }
     }
 
-    IVMapManager* gVMapManager = 0;
-    Table<unsigned int , bool>* iIgnoreSpellIds = 0;
+    std::mutex m_vmapMutex;
+    IVMapManager* gVMapManager = nullptr;
 
     //===============================================
     // result false, if no more id are found
@@ -81,40 +80,15 @@ namespace VMAP
     }
 
     //===============================================
-    /**
-    parameter: String of map ids. Delimiter = ","
-    */
-
-    void VMapFactory::preventSpellsFromBeingTestedForLoS(const char* pSpellIdString)
-    {
-        if (!iIgnoreSpellIds)
-            iIgnoreSpellIds = new Table<unsigned int , bool>();
-        if (pSpellIdString != nullptr)
-        {
-            unsigned int pos = 0;
-            unsigned int id;
-            std::string confString(pSpellIdString);
-            chompAndTrim(confString);
-            while (getNextId(confString, pos, id))
-            {
-                iIgnoreSpellIds->set(id, true);
-            }
-        }
-    }
-
-    //===============================================
-
-    bool VMapFactory::checkSpellForLoS(unsigned int pSpellId)
-    {
-        return !iIgnoreSpellIds->containsKey(pSpellId);
-    }
-
-    //===============================================
     // just return the instance
     IVMapManager* VMapFactory::createOrGetVMapManager()
     {
-        if (gVMapManager == 0)
-            gVMapManager = new VMapManager2();              // should be taken from config ... Please change if you like :-)
+        if (!gVMapManager)
+        {
+            std::lock_guard<std::mutex> lock(m_vmapMutex);
+            if (!gVMapManager)
+                gVMapManager = new VMapManager2();              // should be taken from config ... Please change if you like :-)
+        }
         return gVMapManager;
     }
 
@@ -122,10 +96,9 @@ namespace VMAP
     // delete all internal data structures
     void VMapFactory::clear()
     {
-        delete iIgnoreSpellIds;
-        delete gVMapManager;
+        std::lock_guard<std::mutex> lock(m_vmapMutex);
 
-        iIgnoreSpellIds = nullptr;
+        delete gVMapManager;
         gVMapManager = nullptr;
     }
 }

@@ -17,14 +17,14 @@
  */
 
 #ifndef DO_POSTGRESQL
+#ifndef DO_SQLITE
 
 #include "DatabaseEnv.h"
-#include "Errors.h"
+#include "Util/Errors.h"
 
 QueryResultMysql::QueryResultMysql(MYSQL_RES* result, MYSQL_FIELD* fields, uint64 rowCount, uint32 fieldCount) :
     QueryResult(rowCount, fieldCount), mResult(result)
 {
-
     mCurrentRow = new Field[mFieldCount];
     MANGOS_ASSERT(mCurrentRow);
 
@@ -39,12 +39,10 @@ QueryResultMysql::~QueryResultMysql()
 
 bool QueryResultMysql::NextRow()
 {
-    MYSQL_ROW row;
-
     if (!mResult)
         return false;
 
-    row = mysql_fetch_row(mResult);
+    MYSQL_ROW row = mysql_fetch_row(mResult);
     if (!row)
     {
         EndQuery();
@@ -60,12 +58,12 @@ bool QueryResultMysql::NextRow()
 void QueryResultMysql::EndQuery()
 {
     delete[] mCurrentRow;
-    mCurrentRow = 0;
+    mCurrentRow = nullptr;
 
     if (mResult)
     {
         mysql_free_result(mResult);
-        mResult = 0;
+        mResult = nullptr;
     }
 }
 
@@ -99,4 +97,5 @@ enum Field::DataTypes QueryResultMysql::ConvertNativeType(enum_field_types mysql
             return Field::DB_TYPE_UNKNOWN;
     }
 }
+#endif
 #endif

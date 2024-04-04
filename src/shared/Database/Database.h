@@ -20,13 +20,15 @@
 #define DATABASE_H
 
 #include "Common.h"
-#include "Threading.h"
+#include "Multithreading/Threading.h"
 #include "Database/SqlDelayThread.h"
 #include "Policies/ThreadingModel.h"
 #include "SqlPreparedStatement.h"
+#include "QueryResult.h"
 
 #include <boost/thread/tss.hpp>
 #include <atomic>
+#include <memory>
 
 class SqlTransaction;
 class SqlResultQueue;
@@ -38,7 +40,7 @@ class Database;
 #define MAX_QUERY_LEN   (32*1024)
 
 //
-class MANGOS_DLL_SPEC SqlConnection
+class SqlConnection
 {
     public:
         virtual ~SqlConnection() {}
@@ -46,7 +48,7 @@ class MANGOS_DLL_SPEC SqlConnection
         // method for initializing DB connection
         virtual bool Initialize(const char* infoString) = 0;
         // public methods for making queries
-        virtual QueryResult* Query(const char* sql) = 0;
+        virtual std::unique_ptr<QueryResult> Query(const char* sql) = 0;
         virtual QueryNamedResult* QueryNamed(const char* sql) = 0;
 
         // public methods for making requests
@@ -78,7 +80,7 @@ class MANGOS_DLL_SPEC SqlConnection
         };
 
         // get DB object
-        Database& DB() { return m_db; }
+        Database& DB() const { return m_db; }
 
     protected:
         SqlConnection(Database& db) : m_db(db) {}
@@ -99,7 +101,7 @@ class MANGOS_DLL_SPEC SqlConnection
         StmtHolder m_holder;
 };
 
-class MANGOS_DLL_SPEC Database
+class Database
 {
     public:
         virtual ~Database();
@@ -111,7 +113,7 @@ class MANGOS_DLL_SPEC Database
         virtual void HaltDelayThread();
 
         /// Synchronous DB queries
-        inline QueryResult* Query(const char* sql)
+        inline std::unique_ptr<QueryResult> Query(const char* sql)
         {
             SqlConnection::Lock guard(getQueryConnection());
             return guard->Query(sql);
@@ -123,10 +125,10 @@ class MANGOS_DLL_SPEC Database
             return guard->QueryNamed(sql);
         }
 
-        QueryResult* PQuery(const char* format, ...) ATTR_PRINTF(2, 3);
+        std::unique_ptr<QueryResult> PQuery(const char* format, ...) ATTR_PRINTF(2, 3);
         QueryNamedResult* PQueryNamed(const char* format, ...) ATTR_PRINTF(2, 3);
 
-        inline bool DirectExecute(const char* sql)
+        bool DirectExecute(const char* sql) const
         {
             if (!m_pAsyncConn)
                 return false;
@@ -196,7 +198,7 @@ class MANGOS_DLL_SPEC Database
         // get prepared statement format string
         std::string GetStmtString(const int stmtId) const;
 
-        operator bool () const { return m_pQueryConnections.size() && m_pAsyncConn; }
+        operator bool () const { return !m_pQueryConnections.empty() && m_pAsyncConn; }
 
         // escape string generation
         void escape_string(std::string& str);
@@ -210,7 +212,7 @@ class MANGOS_DLL_SPEC Database
         void ProcessResultQueue();
 
         bool CheckRequiredField(char const* table_name, char const* required_name);
-        uint32 GetPingIntervall() { return m_pingIntervallms; }
+        uint32 GetPingIntervall() const { return m_pingIntervallms; }
 
         // function to ping database connections
         void Ping();
@@ -218,12 +220,12 @@ class MANGOS_DLL_SPEC Database
         // set this to allow async transactions
         // you should call it explicitly after your server successfully started up
         // NO ASYNC TRANSACTIONS DURING SERVER STARTUP - ONLY DURING RUNTIME!!!
-        void AllowAsyncTransactions() { m_bAllowAsyncTransactions = true; }
+        void AllowAsyncTransactions() { m_allowAsyncTransactions = true; }
 
     protected:
         Database() :
             m_nQueryConnPoolSize(1), m_pAsyncConn(nullptr), m_pResultQueue(nullptr),
-            m_threadBody(nullptr), m_delayThread(nullptr), m_bAllowAsyncTransactions(false),
+            m_threadBody(nullptr), m_delayThread(nullptr), m_allowAsyncTransactions(false),
             m_iStmtIndex(-1), m_logSQL(false), m_pingIntervallms(0)
         {
             m_nQueryCounter = -1;
@@ -267,7 +269,7 @@ class MANGOS_DLL_SPEC Database
         SqlDelayThread*     m_threadBody;                   ///< Pointer to delay sql executer (owned by m_delayThread)
         MaNGOS::Thread*     m_delayThread;                  ///< Pointer to executer thread
 
-        bool m_bAllowAsyncTransactions;                     ///< flag which specifies if async transactions are enabled
+        std::atomic<bool> m_allowAsyncTransactions;         ///< flag which specifies if async transactions are enabled
 
         // PREPARED STATEMENT REGISTRY
         typedef std::mutex LOCK_TYPE;
